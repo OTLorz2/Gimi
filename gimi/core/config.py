@@ -38,6 +38,7 @@ class LLMConfig:
     api_key: Optional[str] = None  # API key (can also use env var)
     api_base: Optional[str] = None  # Custom API base URL
     max_tokens: int = 2000  # Maximum tokens in response
+    max_context_tokens: int = 4000  # Maximum tokens for context (diffs)
     temperature: float = 0.3  # Sampling temperature
     timeout: float = 60.0  # Request timeout in seconds
 
