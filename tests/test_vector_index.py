@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from gimi.vector_index import VectorIndex, SimpleEmbedding, VectorEntry
-from gimi.index.git import CommitMetadata
+from gimi.git_traversal import CommitMeta
 
 
 class TestSimpleEmbedding(unittest.TestCase):
@@ -96,7 +96,7 @@ class TestVectorIndex(unittest.TestCase):
         index = VectorIndex(self.gimi_path)
 
         # CommitMetadata from gimi.index.git uses correct field names
-        commit = CommitMetadata(
+        commit = CommitMeta(
             hash="abc123def456789012345678901234567890abcd",
             message="Test commit for authentication feature",
             author_name="Test User",
@@ -118,7 +118,7 @@ class TestVectorIndex(unittest.TestCase):
 
         # Add test commits
         commits = [
-            CommitMetadata(
+            CommitMeta(
                 hash=f"abc{i:03d}def456789012345678901234567890abcd",
                 message=msg,
                 author_name="Test User",
@@ -156,7 +156,7 @@ class TestVectorIndex(unittest.TestCase):
         """Test saving and loading the index."""
         index1 = VectorIndex(self.gimi_path)
 
-        commit = CommitMetadata(
+        commit = CommitMeta(
             hash="abc123def456789012345678901234567890abcd",
             message="Test commit",
             author_name="Test User",
