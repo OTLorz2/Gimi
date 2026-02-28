@@ -14,6 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, List
 
+# Re-export DEFAULT_CONFIG for backward compatibility
+DEFAULT_CONFIG = {}
+
 # Import get_gimi_dir from repo module for backward compatibility
 from gimi.core.repo import get_gimi_dir
 
