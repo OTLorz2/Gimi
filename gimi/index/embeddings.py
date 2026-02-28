@@ -32,6 +32,20 @@ class EmbeddingProvider(ABC):
         """
         pass
 
+    def is_available(self) -> bool:
+        """
+        Check if the embedding provider is available and ready to use.
+
+        Returns:
+            True if the provider is available, False otherwise
+        """
+        try:
+            # Try to get dimension which typically loads/configures the model
+            _ = self.dimension
+            return True
+        except Exception:
+            return False
+
     def embed_single(self, text: str) -> List[float]:
         """
         Generate embedding for a single text.
