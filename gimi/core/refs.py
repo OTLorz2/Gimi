@@ -160,3 +160,18 @@ def compare_refs(
         "removed": removed,
         "modified": modified
     }
+
+
+def are_refs_consistent(old_refs: Dict[str, str], new_refs: Dict[str, str]) -> bool:
+    """
+    Check if two refs snapshots are consistent (unchanged).
+
+    Args:
+        old_refs: Previous refs snapshot.
+        new_refs: Current refs snapshot.
+
+    Returns:
+        True if refs are consistent (no changes), False otherwise.
+    """
+    result = compare_refs(old_refs, new_refs)
+    return not result["changed"]
