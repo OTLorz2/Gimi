@@ -95,6 +95,11 @@ class GimiConfig:
         return cls._from_dict(data)
 
     @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "GimiConfig":
+        """从字典创建配置对象（公共API）"""
+        return cls._from_dict(data)
+
+    @classmethod
     def _from_dict(cls, data: Dict[str, Any]) -> "GimiConfig":
         """从字典创建配置对象"""
         config = cls(

@@ -121,16 +121,17 @@ class TestConfigPersistence(unittest.TestCase):
         config.llm.model = "gpt-4"
         config.retrieval.top_k = 50
 
-        save_config(config, self.gimi_dir)
+        # Use config.to_dict() for saving as dict
+        save_config(self.temp_dir, config.to_dict())
 
-        loaded = load_config(self.gimi_dir)
+        loaded = load_config(self.temp_dir)
         self.assertEqual(loaded.llm.model, "gpt-4")
         self.assertEqual(loaded.retrieval.top_k, 50)
 
     def test_get_config_path(self):
         """Test getting config file path."""
-        path = get_config_path(self.gimi_dir)
-        self.assertEqual(path, self.gimi_dir / "config.json")
+        path = get_config_path(self.temp_dir)
+        self.assertEqual(path, self.temp_dir / ".gimi" / "config.json")
 
 
 if __name__ == "__main__":
