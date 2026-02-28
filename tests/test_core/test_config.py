@@ -73,6 +73,10 @@ class TestSaveConfig:
         """Test saving config creates the file."""
         config = {"test": "value"}
 
+        # Create a mock git repo structure
+        gimi_dir = temp_dir / ".gimi"
+        gimi_dir.mkdir(parents=True, exist_ok=True)
+
         # save_config saves to .gimi/config.json within the repo_root
         save_config(config, temp_dir)
 
