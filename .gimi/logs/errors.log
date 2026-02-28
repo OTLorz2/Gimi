@@ -10,3 +10,4 @@
 [2026-02-28T19:54:21.196336] 807cb045-f532-427b-92c6-f7a9932e4096: 'RetrievalConfig' object has no attribute 'candidate_limit'
 [2026-02-28T19:57:17.993745] 7c2048c6-bcd2-4d13-9141-0d173d2bff5a: 'RetrievalConfig' object has no attribute 'candidate_limit'
 [2026-02-28T20:00:18.406955+00:00] bc552ca4-e4c0-4280-a75c-4e63bac8dda2: 'RetrievalConfig' object has no attribute 'candidate_limit'
+[2026-02-28T20:00:30.350091+00:00] 4fe03fbe-5aea-4fe5-a0c5-ab0d64714829: 'RetrievalConfig' object has no attribute 'candidate_limit'
