@@ -153,6 +153,27 @@ class VectorIndex:
             embedding=row["embedding"]
         )
 
+    def search(
+        self,
+        query_embedding: List[float],
+        top_k: int = 20
+    ) -> List[Tuple[str, float]]:
+        """
+        Search for similar commits by embedding.
+
+        This is the main search interface used by the retrieval engine.
+
+        Args:
+            query_embedding: Query vector as list of floats
+            top_k: Number of results to return
+
+        Returns:
+            List of (commit_hash, similarity_score) tuples
+        """
+        # Convert list of floats to bytes
+        embedding_bytes = self._vector_to_bytes(query_embedding)
+        return self.search_similar(embedding_bytes, top_k=top_k)
+
     def search_similar(
         self,
         query_embedding: bytes,
