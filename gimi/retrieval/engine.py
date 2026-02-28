@@ -1,59 +1,42 @@
-"""Retrieval engine for hybrid search (keyword + path + semantic)."""
+"""Retrieval engine that combines keyword, path, and semantic search.
 
-import struct
-from dataclasses import dataclass, field
+This module provides the RetrievalEngine class that orchestrates
+the different retrieval strategies to find relevant commits.
+"""
+
+from dataclasses import dataclass
+from typing import List, Optional, Dict, Any
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Callable
-import json
 
-from gimi.core.config import RetrievalConfig
 from gimi.index.lightweight import LightweightIndex, IndexedCommit
 from gimi.index.vector_index import VectorIndex
 from gimi.index.embeddings import EmbeddingProvider
-
-
-class RetrievalError(Exception):
-    """Raised when retrieval fails."""
-    pass
+from gimi.core.config import RetrievalConfig
 
 
 @dataclass
-class RetrievalResult:
-    """Result of a retrieval operation."""
+class SearchResult:
+    """Result from a search query."""
     commit: IndexedCommit
-    keyword_score: float = 0.0
-    path_score: float = 0.0
-    semantic_score: float = 0.0
-    combined_score: float = 0.0
-
-
-@dataclass
-class RetrievalStats:
-    """Statistics for retrieval operation."""
-    candidate_count: int = 0
-    keyword_filtered_count: int = 0
-    path_filtered_count: int = 0
-    semantic_search_count: int = 0
-    final_count: int = 0
-    total_time_ms: float = 0.0
+    score: float
+    source: str  # 'keyword', 'semantic', 'fusion'
 
 
 class RetrievalEngine:
-    """Hybrid retrieval engine combining keyword, path, and semantic search."""
+    """Engine that combines multiple retrieval strategies."""
 
     def __init__(
         self,
         lightweight_index: LightweightIndex,
         vector_index: VectorIndex,
-        embedding_provider: EmbeddingProvider,
+        embedding_provider: Optional[EmbeddingProvider],
         config: RetrievalConfig
     ):
-        """
-        Initialize retrieval engine.
+        """Initialize the retrieval engine.
 
         Args:
-            lightweight_index: SQLite-based lightweight index
-            vector_index: Vector index for semantic search
+            lightweight_index: The lightweight index for keyword/path search
+            vector_index: The vector index for semantic search
             embedding_provider: Provider for generating embeddings
             config: Retrieval configuration
         """
@@ -61,178 +44,149 @@ class RetrievalEngine:
         self.vector_index = vector_index
         self.embedding_provider = embedding_provider
         self.config = config
-        self._stats: Optional[RetrievalStats] = None
 
     def search(
         self,
         query: str,
         file_paths: Optional[List[str]] = None,
-        progress_callback: Optional[Callable[[str, int, int], None]] = None
-    ) -> List[RetrievalResult]:
-        """
-        Perform hybrid search combining keyword, path, and semantic retrieval.
+        branch: Optional[str] = None,
+        top_k: Optional[int] = None
+    ) -> List[SearchResult]:
+        """Search for relevant commits.
 
         Args:
-            query: User query text
+            query: The search query
             file_paths: Optional list of file paths to filter by
-            progress_callback: Optional callback for progress updates
+            branch: Optional branch to filter by
+            top_k: Number of results to return (overrides config)
 
         Returns:
-            List of retrieval results sorted by combined score
+            List of search results
         """
-        import time
-        start_time = time.time()
+        k = top_k or self.config.top_k
 
-        self._stats = RetrievalStats()
-
-        # Stage 1: Keyword and path retrieval (T10)
-        candidates = self._get_candidates(query, file_paths)
-        self._stats.candidate_count = len(candidates)
-
-        if progress_callback:
-            progress_callback("Keyword/Path retrieval", len(candidates), len(candidates))
+        # Phase 1: Get candidates using keyword/path search
+        candidates = self._get_candidates(query, file_paths, branch)
 
         if not candidates:
-            self._stats.total_time_ms = (time.time() - start_time) * 1000
             return []
 
-        # Stage 2: Semantic retrieval and fusion (T11)
-        results = self._semantic_fusion(query, candidates)
-        self._stats.semantic_search_count = len(results)
-
-        if progress_callback:
-            progress_callback("Semantic fusion", len(results), len(results))
-
-        # Stage 3: Optional two-stage reranking (T12)
-        if self.config.enable_rerank:
-            results = self._rerank(query, results)
-
-            if progress_callback:
-                progress_callback("Reranking", len(results), len(results))
-
-        self._stats.final_count = len(results)
-        self._stats.total_time_ms = (time.time() - start_time) * 1000
+        # Phase 2: Rerank using semantic search if available
+        results = self._rerank(query, candidates, k)
 
         return results
 
     def _get_candidates(
         self,
         query: str,
-        file_paths: Optional[List[str]] = None
-    ) -> Dict[str, float]:
-        """
-        Get candidate commits using keyword and path search.
+        file_paths: Optional[List[str]] = None,
+        branch: Optional[str] = None
+    ) -> List[IndexedCommit]:
+        """Get candidate commits using keyword and path search.
 
         Args:
-            query: Search query
+            query: The search query
             file_paths: Optional file paths to filter by
+            branch: Optional branch to filter by
 
         Returns:
-            Dictionary mapping commit hash to keyword/path score
+            List of candidate commits
         """
-        candidates: Dict[str, float] = {}
+        candidates: Dict[str, IndexedCommit] = {}
 
-        # Keyword search on message and author
-        keyword_results = self.lightweight_index.search_by_message(
-            query, limit=self.config.keyword_candidates
-        )
+        # Search by message content
+        message_results = self.lightweight_index.search_by_message(query, limit=self.config.candidate_limit)
+        for commit in message_results:
+            candidates[commit.hash] = commit
 
-        for commit in keyword_results:
-            # Simple score based on position
-            score = 1.0 / (keyword_results.index(commit) + 1)
-            candidates[commit.hash] = score
-
-        # Path-based filtering
+        # Search by file paths
         if file_paths:
-            for path_pattern in file_paths:
-                path_results = self.lightweight_index.search_by_path(
-                    path_pattern, limit=self.config.keyword_candidates
-                )
-
+            for path in file_paths:
+                path_results = self.lightweight_index.search_by_path(path, limit=self.config.candidate_limit)
                 for commit in path_results:
-                    score = 1.0 / (path_results.index(commit) + 1)
-                    if commit.hash in candidates:
-                        candidates[commit.hash] = max(candidates[commit.hash], score)
-                    else:
-                        candidates[commit.hash] = score
+                    candidates[commit.hash] = commit
 
-        return candidates
+        # Filter by branch if specified
+        if branch:
+            filtered = {}
+            for hash_val, commit in candidates.items():
+                if branch in commit.branches:
+                    filtered[hash_val] = commit
+            candidates = filtered
 
-    def _semantic_fusion(
-        self,
-        query: str,
-        candidates: Dict[str, float]
-    ) -> List[RetrievalResult]:
-        """
-        Perform semantic search on candidates and fuse scores.
-
-        Args:
-            query: User query
-            candidates: Candidate commits with keyword/path scores
-
-        Returns:
-            List of retrieval results sorted by combined score
-        """
-        # Generate query embedding
-        query_embedding = self.embedding_provider.embed_single(query)
-
-        # Convert to bytes for vector search
-        query_bytes = struct.pack(f"{len(query_embedding)}f", *query_embedding)
-
-        # Search in vector index
-        vector_results = self.vector_index.search_similar(
-            query_bytes, top_k=len(candidates)
-        )
-
-        # Map hash to similarity score
-        semantic_scores = {h: s for h, s in vector_results}
-
-        # Create retrieval results with fused scores
-        results = []
-        for commit_hash, keyword_score in candidates.items():
-            commit = self.lightweight_index.get_commit(commit_hash)
-            if commit is None:
-                continue
-
-            semantic_score = semantic_scores.get(commit_hash, 0.0)
-
-            # Simple weighted fusion - could use RRF for better results
-            combined_score = 0.3 * keyword_score + 0.7 * semantic_score
-
-            results.append(RetrievalResult(
-                commit=commit,
-                keyword_score=keyword_score,
-                semantic_score=semantic_score,
-                combined_score=combined_score
-            ))
-
-        # Sort by combined score descending
-        results.sort(key=lambda x: x.combined_score, reverse=True)
-
-        return results[:self.config.top_k]
+        return list(candidates.values())
 
     def _rerank(
         self,
         query: str,
-        results: List[RetrievalResult]
-    ) -> List[RetrievalResult]:
-        """
-        Optional two-stage reranking using cross-encoder or LLM.
+        candidates: List[IndexedCommit],
+        top_k: int
+    ) -> List[SearchResult]:
+        """Rerank candidates using semantic search.
 
         Args:
-            query: User query
-            results: Initial retrieval results
+            query: The search query
+            candidates: List of candidate commits
+            top_k: Number of results to return
 
         Returns:
-            Reranked results
+            List of reranked results
         """
-        # For now, this is a placeholder
-        # A full implementation would use a cross-encoder model
-        # or an LLM to score relevance
+        # If no embedding provider, just return candidates as-is
+        if not self.embedding_provider or not self.embedding_provider.is_available():
+            results = []
+            for commit in candidates[:top_k]:
+                results.append(SearchResult(
+                    commit=commit,
+                    score=1.0,
+                    source='keyword'
+                ))
+            return results
 
-        # Take top results from initial ranking
-        return results[:self.config.rerank_top_k]
+        # Generate query embedding
+        query_embedding = self.embedding_provider.embed(query)
 
-    def get_stats(self) -> Optional[RetrievalStats]:
-        """Get statistics from the last search operation."""
-        return self._stats
+        # Score each candidate
+        scored_results = []
+        for commit in candidates:
+            # Get commit embedding from vector index
+            commit_embedding = self.vector_index.get_embedding(commit.hash)
+
+            if commit_embedding is not None:
+                # Calculate similarity
+                similarity = self._cosine_similarity(query_embedding, commit_embedding)
+                scored_results.append((commit, similarity))
+
+        # Sort by score and take top_k
+        scored_results.sort(key=lambda x: x[1], reverse=True)
+
+        results = []
+        for commit, score in scored_results[:top_k]:
+            results.append(SearchResult(
+                commit=commit,
+                score=score,
+                source='fusion'
+            ))
+
+        return results
+
+    def _cosine_similarity(self, a: List[float], b: List[float]) -> float:
+        """Calculate cosine similarity between two vectors.
+
+        Args:
+            a: First vector
+            b: Second vector
+
+        Returns:
+            Cosine similarity (between -1 and 1)
+        """
+        import math
+
+        dot_product = sum(x * y for x, y in zip(a, b))
+        magnitude_a = math.sqrt(sum(x * x for x in a))
+        magnitude_b = math.sqrt(sum(x * x for x in b))
+
+        if magnitude_a == 0 or magnitude_b == 0:
+            return 0.0
+
+        return dot_product / (magnitude_a * magnitude_b)
