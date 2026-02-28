@@ -11,9 +11,13 @@ from pathlib import Path
 from typing import Optional
 
 
-class GimiRepoError(Exception):
+class RepoError(Exception):
     """Error related to repository operations."""
     pass
+
+
+# Alias for backward compatibility
+GimiRepoError = RepoError
 
 
 def find_repo_root(cwd: Optional[Path] = None) -> Path:
