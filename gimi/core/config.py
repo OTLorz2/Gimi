@@ -282,15 +282,14 @@ def save_config(config: Union[Dict[str, Any], "GimiConfig", Path], repo_root: Op
         ConfigError: If unable to save configuration.
     """
     # Handle different calling conventions
-    if isinstance(config, Path) and repo_root is None:
-        # Called as save_config(repo_root) - get config from path
-        config_path = get_config_path(config)
-        config_obj = GimiConfig()
-        config_dict = config_obj.to_dict()
+    if isinstance(config, dict) and isinstance(repo_root, (Path, str)):
+        # Called as save_config(config_dict, repo_root)
+        config_path = get_config_path(repo_root)
+        config_dict = config
     elif isinstance(config, Path) and repo_root is not None:
-        # Called as save_config(config_path, config_dict) or save_config(config_path, repo_root)
+        # Called as save_config(config_path, repo_root) - deprecated
         config_path = config
-        # If repo_root is a dict, use it as the config; otherwise create default config
+        # If repo_root is a dict, use it as the config
         if isinstance(repo_root, dict):
             config_dict = repo_root
         elif hasattr(repo_root, 'to_dict'):
@@ -298,15 +297,12 @@ def save_config(config: Union[Dict[str, Any], "GimiConfig", Path], repo_root: Op
         else:
             config_obj = GimiConfig()
             config_dict = config_obj.to_dict()
-    elif repo_root is None:
-        raise ConfigError("repo_root is required when config is not a Path")
+    elif isinstance(config, Path) and repo_root is None:
+        # Called as save_config(repo_root) - save default config to repo
+        config_path = get_config_path(config)
+        config_dict = GimiConfig().to_dict()
     else:
-        config_path = get_config_path(repo_root)
-        # Convert GimiConfig to dict if needed
-        if hasattr(config, 'to_dict'):
-            config_dict = config.to_dict()
-        else:
-            config_dict = config
+        raise ConfigError(f"Invalid arguments: config={type(config)}, repo_root={type(repo_root)}")
 
     try:
         # Ensure parent directory exists

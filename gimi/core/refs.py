@@ -135,17 +135,19 @@ def get_current_refs(repo_root: Path) -> Dict[str, str]:
         RefsError: If unable to get current refs.
     """
     try:
-        # Get all local branch refs
-        result = subprocess.run(
-            ["git", "for-each-ref", "--format=%(objectname) %(refname:short)", "refs/heads/"],
+        # Use run_git_command for better testability
+        rc, stdout, stderr = run_git_command(
+            ["for-each-ref", "--format=%(objectname) %(refname:short)", "refs/heads/"],
             cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True
+            check=False
         )
 
+        if rc != 0:
+            raise RefsError(f"Failed to get current refs: {stderr}")
+
         refs = {}
-        for line in result.stdout.strip().split('\n'):
+        for line in stdout.strip().split('\n'):
+            line = line.strip()
             if line:
                 parts = line.split(' ', 1)
                 if len(parts) == 2:
@@ -153,8 +155,8 @@ def get_current_refs(repo_root: Path) -> Dict[str, str]:
                     refs[ref_name] = commit_hash
 
         return refs
-    except subprocess.CalledProcessError as e:
-        raise RefsError(f"Failed to get current refs: {e.stderr}")
+    except RefsError:
+        raise
     except Exception as e:
         raise RefsError(f"Failed to get current refs: {e}")
 
