@@ -178,8 +178,8 @@ class VectorIndex:
             parts.extend(file_parts)
 
         # 添加作者信息
-        if commit.author_name:
-            parts.append(commit.author_name)
+        if commit.author:
+            parts.append(commit.author)
 
         return " ".join(parts)
 
