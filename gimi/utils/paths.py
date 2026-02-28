@@ -21,7 +21,7 @@ class GimiPaths:
     REFS_SNAPSHOT_FILE = "refs_snapshot.json"
 
     def __init__(self, repo_root: Path):
-        self.repo_root = Path(repo_root).resolve()
+        self.repo_root = Path(repo_root).absolute()
         self.gimi_dir = self.repo_root / self.GIMI_DIR_NAME
 
     @classmethod
