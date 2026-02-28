@@ -291,9 +291,20 @@ def main() -> int:
                 from gimi.llm.prompt_builder import PromptBuilder
 
                 prompt_builder = PromptBuilder(config.llm)
+                from gimi.context.diff_manager import DiffResult
+                diff_results = []
+                for d in diffs:
+                    diff_text = d['diff']
+                    commit = d['commit']
+                    diff_results.append(DiffResult(
+                        commit_hash=commit.hash,
+                        diff_text=diff_text,
+                        files_changed=[],
+                        stats={'files': 0, 'insertions': 0, 'deletions': 0}
+                    ))
                 prompt = prompt_builder.build_prompt(
                     query=args.query,
-                    diffs=diffs
+                    diff_results=diff_results
                 )
 
                 llm_client = LLMClient(config.llm)
