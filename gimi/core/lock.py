@@ -305,9 +305,6 @@ def release_lock(lock_path: Union[str, Path]) -> None:
         LockError: If lock cannot be released or lock doesn't exist.
     """
     lock = FileLock(lock_path)
-    # Check if lock file exists before releasing
-    if not lock.lock_path.exists():
-        raise LockError("Lock is not owned by this process")
     lock.release()
 
 
