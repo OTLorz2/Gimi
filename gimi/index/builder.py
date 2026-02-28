@@ -1,8 +1,9 @@
 """Index builder for traversing git history and building indexes."""
 
 import json
+import time
 from pathlib import Path
-from typing import List, Optional, Iterator, Dict, Any, Callable
+from typing import List, Optional, Iterator, Dict, Any, Callable, Tuple
 from datetime import datetime
 
 from gimi.core.git import (
@@ -26,11 +27,18 @@ class IndexBuilderError(Exception):
 
 
 class Checkpoint:
-    """Checkpoint for incremental index building."""
+    """Checkpoint for incremental index building with resume capability."""
 
     def __init__(self, checkpoint_file: Path):
         self.checkpoint_file = checkpoint_file
-        self.data: Dict[str, Any] = {}
+        self.data: Dict[str, Any] = {
+            "version": 1,
+            "branches": {},
+            "last_updated": None,
+            "total_commits_processed": 0,
+            "failed_commits": [],
+            "in_progress": False,
+        }
         if checkpoint_file.exists():
             self.load()
 
@@ -38,15 +46,30 @@ class Checkpoint:
         """Load checkpoint from file."""
         try:
             with open(self.checkpoint_file, "r") as f:
-                self.data = json.load(f)
+                loaded_data = json.load(f)
+                # Merge with defaults to ensure all keys exist
+                self.data.update(loaded_data)
         except (json.JSONDecodeError, IOError):
-            self.data = {}
+            # Keep default data if load fails
+            pass
 
     def save(self) -> None:
-        """Save checkpoint to file."""
+        """Save checkpoint to file atomically."""
         self.checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.checkpoint_file, "w") as f:
-            json.dump(self.data, f, indent=2)
+        self.data["last_updated"] = datetime.now().isoformat()
+
+        # Write to temp file first for atomicity
+        temp_file = self.checkpoint_file.with_suffix('.tmp')
+        try:
+            with open(temp_file, "w") as f:
+                json.dump(self.data, f, indent=2)
+            # Atomic rename
+            temp_file.replace(self.checkpoint_file)
+        except Exception:
+            # Clean up temp file if it exists
+            if temp_file.exists():
+                temp_file.unlink()
+            raise
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get value from checkpoint."""
@@ -56,9 +79,70 @@ class Checkpoint:
         """Set value in checkpoint."""
         self.data[key] = value
 
+    def get_branch_state(self, branch: str) -> Dict[str, Any]:
+        """Get state for a specific branch."""
+        branches = self.data.get("branches", {})
+        return branches.get(branch, {
+            "last_commit": None,
+            "commits_processed": 0,
+            "status": "pending"
+        })
+
+    def set_branch_state(self, branch: str, state: Dict[str, Any]) -> None:
+        """Set state for a specific branch."""
+        if "branches" not in self.data:
+            self.data["branches"] = {}
+        self.data["branches"][branch] = state
+
+    def mark_in_progress(self, in_progress: bool = True) -> None:
+        """Mark indexing as in progress or completed."""
+        self.data["in_progress"] = in_progress
+        self.save()
+
+    def add_failed_commit(self, commit_hash: str, error: str) -> None:
+        """Record a failed commit for retry."""
+        if "failed_commits" not in self.data:
+            self.data["failed_commits"] = []
+        self.data["failed_commits"].append({
+            "hash": commit_hash,
+            "error": error,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    def get_failed_commits(self) -> List[Dict[str, Any]]:
+        """Get list of failed commits for retry."""
+        return self.data.get("failed_commits", [])
+
+    def clear_failed_commits(self) -> None:
+        """Clear failed commits list after successful retry."""
+        self.data["failed_commits"] = []
+
+    def can_resume(self) -> bool:
+        """Check if there's a valid checkpoint to resume from."""
+        return (
+            self.checkpoint_file.exists() and
+            self.data.get("in_progress", False) and
+            self.data.get("branches")
+        )
+
+    def get_resume_branches(self) -> List[str]:
+        """Get list of branches that can be resumed."""
+        branches = []
+        for branch, state in self.data.get("branches", {}).items():
+            if state.get("status") == "in_progress":
+                branches.append(branch)
+        return branches
+
     def clear(self) -> None:
         """Clear checkpoint data."""
-        self.data = {}
+        self.data = {
+            "version": 1,
+            "branches": {},
+            "last_updated": None,
+            "total_commits_processed": 0,
+            "failed_commits": [],
+            "in_progress": False,
+        }
         if self.checkpoint_file.exists():
             self.checkpoint_file.unlink()
 
