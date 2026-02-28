@@ -57,3 +57,29 @@
 [2026-02-28T21:48:47.503394+00:00] 00a6642e-bf72-4910-bd2c-432e71debe62: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
 [2026-02-28T21:48:52.618383+00:00] 291f38ee-2f06-4a4f-8e08-d274057c2e9b: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
 [2026-02-28T21:48:57.721943+00:00] 000b284a-0fbb-4f34-b08f-c76601096691: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:49:15.902383+00:00] af64f061-7655-4fea-8139-d7a5417692b4: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:49:48.045272+00:00] 5c16beaa-c9d2-42a8-91d3-d29515194fbd: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:49:48.053387+00:00] e2b86707-fc50-48ef-a155-de8dc9336d75: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:50:15.885283+00:00] 8619ab6f-1a5c-460c-a406-e0f7b0fce68d: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:50:18.285010+00:00] 82aad4a8-da51-4d17-99dd-b6f63e34c6d2: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:50:46.271417+00:00] 311354f5-6da8-4942-b7ec-4849998c8eac: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:51:05.172260+00:00] b5b86924-b0d5-4329-b0ea-4ae4f482a814: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:51:07.337648+00:00] 85efc63e-2396-4503-b461-c51b675807f0: PromptBuilder.build_prompt() got an unexpected keyword argument 'diffs'
+[2026-02-28T21:51:34.461510+00:00] 591a1500-1d63-481a-af00-e62f18282716: LLMClient() takes no arguments
+[2026-02-28T21:51:36.826499+00:00] 59b9053d-c3ea-4a07-84bc-9daa57a379e4: LLMClient() takes no arguments
+[2026-02-28T21:51:53.686057+00:00] ed146da4-72bc-4494-96af-4035c10d4ea5: LLMClient() takes no arguments
+[2026-02-28T21:51:54.312249+00:00] 56daec83-88a6-4ebd-94ef-eafbccbe1479: LLMClient() takes no arguments
+[2026-02-28T21:52:04.140631+00:00] d59c08a5-7a2d-4caf-a7b9-b97b5b6324a8: LLMClient() takes no arguments
+[2026-02-28T21:52:09.470196+00:00] 23e769a0-0063-40e4-85fe-35bad164cd5a: LLMClient() takes no arguments
+[2026-02-28T21:52:32.883621+00:00] 832d2fc4-2f9c-40e5-baa5-3361b77455f0: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:52:41.919970+00:00] 0eae59fa-f748-4b8c-b16c-2a7ece4e1719: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:52:44.282088+00:00] b19e2f1e-0d3b-4f42-a8f4-703c0788bb14: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:52:46.713479+00:00] 61f388d9-eaf5-4eba-ab77-b0921bc76e71: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:52:47.754618+00:00] 4bb45e02-04eb-49c7-903d-ca820169bbae: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:53:12.702112+00:00] c8f68432-dd96-4efd-b199-2eb0bf6f057d: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:53:30.070844+00:00] 56c58371-3ea9-46cb-8732-1746475eb9c8: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:53:38.443455+00:00] cab55e71-91eb-4c60-9818-1f225d175e61: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:53:59.542371+00:00] ee3f2fe2-7bbd-48d2-9f79-073e568a0b88: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:53:59.597593+00:00] 7b21a84d-fe41-4d58-bf3b-00ae8bf91aef: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:54:11.953790+00:00] cbba8fb7-6d23-441e-a70f-cef90dbeeab8: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
+[2026-02-28T21:54:28.729401+00:00] 4b673c33-c1a5-4598-b369-519ef72b1de1: OpenAI API key not provided. Set OPENAI_API_KEY environment variable.
