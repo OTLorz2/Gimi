@@ -186,6 +186,46 @@ def save_refs_snapshot(snapshot: RefsSnapshot, gimi_dir: Path) -> None:
         raise RefsError(f"Failed to save snapshot: {e}")
 
 
+def get_current_refs(repo_root: Path) -> RefsSnapshot:
+    """
+    Get current refs state of the repository.
+
+    This is an alias for capture_refs_snapshot for API consistency.
+
+    Args:
+        repo_root: Path to repository root
+
+    Returns:
+        Current refs snapshot
+    """
+    return capture_refs_snapshot(repo_root)
+
+
+def are_refs_consistent(saved: RefsSnapshot, current: RefsSnapshot) -> bool:
+    """
+    Check if saved refs snapshot is consistent with current state.
+
+    Args:
+        saved: Saved refs snapshot
+        current: Current refs snapshot
+
+    Returns:
+        True if refs are consistent (no changes detected)
+    """
+    if not saved or not current:
+        return False
+
+    diff = saved.diff(current)
+
+    # Consider consistent if no changes in refs or HEAD
+    return (
+        not diff["changed_refs"] and
+        not diff["new_refs"] and
+        not diff["removed_refs"] and
+        not diff["head_changed"]
+    )
+
+
 def check_index_validity(
     gimi_dir: Path,
     repo_root: Path
