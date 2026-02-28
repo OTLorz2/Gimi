@@ -7,7 +7,7 @@ import json
 import time
 import uuid
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -83,7 +83,7 @@ class RequestLogger:
         # Store request info for later completion
         self._current_request = {
             "request_id": request_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "repo_root": repo_root,
             "query": query,
             "file_path": file_path,
@@ -119,7 +119,7 @@ class RequestLogger:
 
         entry = RequestLogEntry(
             request_id=request_id,
-            timestamp=self._current_request.get("timestamp", datetime.utcnow().isoformat()),
+            timestamp=self._current_request.get("timestamp", datetime.now(timezone.utc).isoformat()),
             repo_root=self._current_request.get("repo_root", ""),
             query=self._current_request.get("query", ""),
             file_path=self._current_request.get("file_path"),
@@ -144,7 +144,7 @@ class RequestLogger:
         if not success and error:
             try:
                 with open(self.errors_log, "a", encoding="utf-8") as f:
-                    timestamp = datetime.utcnow().isoformat()
+                    timestamp = datetime.now(timezone.utc).isoformat()
                     f.write(f"[{timestamp}] {request_id}: {error}\n")
             except Exception:
                 pass
@@ -193,7 +193,7 @@ class IndexBuildLogger:
 
         entry = IndexBuildLogEntry(
             build_id=build_id,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             repo_root=repo_root,
             success=success,
             error=error,

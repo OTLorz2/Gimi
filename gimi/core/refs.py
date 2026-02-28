@@ -5,7 +5,7 @@ import subprocess
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RefsError(Exception):
@@ -28,7 +28,7 @@ class RefsSnapshot:
     head: Optional[str] = None
 
     # When the snapshot was created
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Optional: commit counts per branch for quick validation
     commit_counts: Dict[str, int] = field(default_factory=dict)
@@ -39,7 +39,7 @@ class RefsSnapshot:
         return cls(
             refs=data.get("refs", {}),
             head=data.get("head"),
-            timestamp=data.get("timestamp", datetime.utcnow().isoformat()),
+            timestamp=data.get("timestamp", datetime.now(timezone.utc).isoformat()),
             commit_counts=data.get("commit_counts", {})
         )
 
