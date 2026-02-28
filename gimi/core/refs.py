@@ -1,274 +1,162 @@
-"""Refs snapshot management for index validity tracking."""
+"""
+Refs snapshot handling for index validation (T4, T5).
 
+This module handles:
+- Saving and loading refs snapshots
+- Getting current refs from git
+- Comparing refs to detect changes
+"""
 import json
 import subprocess
-from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 
 class RefsError(Exception):
-    """Raised when refs operations fail."""
+    """Error related to refs operations."""
     pass
 
 
-@dataclass
-class RefsSnapshot:
+def get_refs_snapshot_path(gimi_dir: Path) -> Path:
     """
-    Snapshot of repository refs at a point in time.
+    Get the path to the refs snapshot file.
 
-    This is used to track whether the index is up-to-date with the
-    current repository state.
+    Args:
+        gimi_dir: Path to the .gimi directory.
+
+    Returns:
+        Path to the refs snapshot file.
     """
-    # Map of ref name (e.g., "refs/heads/main") to commit hash
-    refs: Dict[str, str] = field(default_factory=dict)
-
-    # Current HEAD
-    head: Optional[str] = None
-
-    # When the snapshot was created
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-    # Optional: commit counts per branch for quick validation
-    commit_counts: Dict[str, int] = field(default_factory=dict)
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RefsSnapshot":
-        """Create snapshot from dictionary."""
-        return cls(
-            refs=data.get("refs", {}),
-            head=data.get("head"),
-            timestamp=data.get("timestamp", datetime.now(timezone.utc).isoformat()),
-            commit_counts=data.get("commit_counts", {})
-        )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert snapshot to dictionary."""
-        return asdict(self)
-
-    def diff(self, other: "RefsSnapshot") -> Dict[str, Any]:
-        """
-        Compare this snapshot with another.
-
-        Returns a dict describing the differences:
-        - changed_refs: dict of ref -> (old_hash, new_hash)
-        - new_refs: set of new ref names
-        - removed_refs: set of removed ref names
-        - head_changed: whether HEAD changed
-        """
-        self_refs = set(self.refs.keys())
-        other_refs = set(other.refs.keys())
-
-        new_refs = other_refs - self_refs
-        removed_refs = self_refs - other_refs
-        common_refs = self_refs & other_refs
-
-        changed_refs = {}
-        for ref in common_refs:
-            if self.refs[ref] != other.refs[ref]:
-                changed_refs[ref] = (self.refs[ref], other.refs[ref])
-
-        return {
-            "changed_refs": changed_refs,
-            "new_refs": new_refs,
-            "removed_refs": removed_refs,
-            "head_changed": self.head != other.head,
-            "head_old": self.head,
-            "head_new": other.head
-        }
-
-
-def get_snapshot_path(gimi_dir: Path) -> Path:
-    """Get path to refs snapshot file."""
     return gimi_dir / "refs_snapshot.json"
 
 
-def capture_refs_snapshot(repo_root: Path) -> RefsSnapshot:
+def load_refs_snapshot(gimi_dir: Path) -> Dict[str, str]:
     """
-    Capture current refs state of the repository.
+    Load the refs snapshot from disk.
 
     Args:
-        repo_root: Path to repository root
+        gimi_dir: Path to the .gimi directory.
 
     Returns:
-        Snapshot of current refs state
+        Dictionary mapping branch names to commit hashes.
+        Returns empty dict if snapshot doesn't exist.
 
     Raises:
-        RefsError: If refs cannot be read
+        RefsError: If snapshot file exists but is invalid.
     """
-    snapshot = RefsSnapshot()
-
-    try:
-        # Get current HEAD
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        snapshot.head = result.stdout.strip()
-    except subprocess.CalledProcessError:
-        # Might be a fresh repo with no commits
-        snapshot.head = None
-
-    # Get all refs
-    try:
-        result = subprocess.run(
-            ["git", "for-each-ref", "--format=%(refname) %(objectname)"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            check=True
-        )
-
-        for line in result.stdout.strip().split("\n"):
-            if line:
-                parts = line.split()
-                if len(parts) >= 2:
-                    ref_name = parts[0]
-                    commit_hash = parts[1]
-                    snapshot.refs[ref_name] = commit_hash
-
-    except subprocess.CalledProcessError as e:
-        raise RefsError(f"Failed to read refs: {e}")
-
-    return snapshot
-
-
-def load_refs_snapshot(gimi_dir: Path) -> Optional[RefsSnapshot]:
-    """
-    Load saved refs snapshot.
-
-    Args:
-        gimi_dir: Path to .gimi directory
-
-    Returns:
-        Loaded snapshot or None if not exists
-
-    Raises:
-        RefsError: If snapshot exists but cannot be loaded
-    """
-    snapshot_path = get_snapshot_path(gimi_dir)
+    snapshot_path = get_refs_snapshot_path(gimi_dir)
 
     if not snapshot_path.exists():
-        return None
+        return {}
 
     try:
-        with open(snapshot_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return RefsSnapshot.from_dict(data)
+        with open(snapshot_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
     except json.JSONDecodeError as e:
-        raise RefsError(f"Invalid snapshot JSON: {e}")
+        raise RefsError(f"Invalid JSON in refs snapshot: {e}")
     except Exception as e:
-        raise RefsError(f"Failed to load snapshot: {e}")
+        raise RefsError(f"Failed to load refs snapshot: {e}")
 
 
-def save_refs_snapshot(snapshot: RefsSnapshot, gimi_dir: Path) -> None:
+def save_refs_snapshot(gimi_dir: Path, refs: Dict[str, str]) -> None:
     """
-    Save refs snapshot.
+    Save the refs snapshot to disk.
 
     Args:
-        snapshot: Snapshot to save
-        gimi_dir: Path to .gimi directory
+        gimi_dir: Path to the .gimi directory.
+        refs: Dictionary mapping branch names to commit hashes.
 
     Raises:
-        RefsError: If snapshot cannot be saved
+        RefsError: If unable to save snapshot.
     """
-    snapshot_path = get_snapshot_path(gimi_dir)
+    snapshot_path = get_refs_snapshot_path(gimi_dir)
 
     try:
+        # Ensure parent directory exists
         snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(snapshot_path, "w", encoding="utf-8") as f:
-            json.dump(snapshot.to_dict(), f, indent=2)
+
+        with open(snapshot_path, 'w', encoding='utf-8') as f:
+            json.dump(refs, f, indent=2, sort_keys=True)
     except Exception as e:
-        raise RefsError(f"Failed to save snapshot: {e}")
+        raise RefsError(f"Failed to save refs snapshot: {e}")
 
 
-def get_current_refs(repo_root: Path) -> RefsSnapshot:
+def get_current_refs(repo_root: Path) -> Dict[str, str]:
     """
-    Get current refs state of the repository.
+    Get the current refs from the git repository.
 
-    This is an alias for capture_refs_snapshot for API consistency.
+    Returns refs for all local branches.
 
     Args:
-        repo_root: Path to repository root
+        repo_root: Path to the repository root.
 
     Returns:
-        Current refs snapshot
+        Dictionary mapping branch names to commit hashes.
+
+    Raises:
+        RefsError: If unable to get current refs.
     """
-    return capture_refs_snapshot(repo_root)
-
-
-def are_refs_consistent(saved: RefsSnapshot, current: RefsSnapshot) -> bool:
-    """
-    Check if saved refs snapshot is consistent with current state.
-
-    Args:
-        saved: Saved refs snapshot
-        current: Current refs snapshot
-
-    Returns:
-        True if refs are consistent (no changes detected)
-    """
-    if not saved or not current:
-        return False
-
-    diff = saved.diff(current)
-
-    # Consider consistent if no changes in refs or HEAD
-    return (
-        not diff["changed_refs"] and
-        not diff["new_refs"] and
-        not diff["removed_refs"] and
-        not diff["head_changed"]
-    )
-
-
-def check_index_validity(
-    gimi_dir: Path,
-    repo_root: Path
-) -> tuple[bool, Optional[RefsSnapshot], Optional[RefsSnapshot]]:
-    """
-    Check if the current index is valid (up-to-date with repo).
-
-    Args:
-        gimi_dir: Path to .gimi directory
-        repo_root: Path to repository root
-
-    Returns:
-        Tuple of (is_valid, current_snapshot, saved_snapshot):
-        - is_valid: True if index is up-to-date
-        - current_snapshot: Current refs state (or None on error)
-        - saved_snapshot: Last saved snapshot (or None if not exists)
-    """
-    # Get current state
     try:
-        current = capture_refs_snapshot(repo_root)
-    except RefsError:
-        return False, None, None
+        # Get all local branch refs
+        result = subprocess.run(
+            ["git", "for-each-ref", "--format=%(objectname) %(refname:short)", "refs/heads/"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
 
-    # Get saved state
-    try:
-        saved = load_refs_snapshot(gimi_dir)
-    except RefsError:
-        return False, current, None
+        refs = {}
+        for line in result.stdout.strip().split('\n'):
+            if line:
+                parts = line.split(' ', 1)
+                if len(parts) == 2:
+                    commit_hash, ref_name = parts
+                    refs[ref_name] = commit_hash
 
-    if saved is None:
-        # No saved snapshot means index needs to be built
-        return False, current, None
+        return refs
+    except subprocess.CalledProcessError as e:
+        raise RefsError(f"Failed to get current refs: {e.stderr}")
+    except Exception as e:
+        raise RefsError(f"Failed to get current refs: {e}")
 
-    # Compare refs
-    # For now, we consider the index invalid if any refs changed
-    # This could be made more sophisticated (e.g., only check indexed branches)
-    diff = saved.diff(current)
 
-    is_valid = (
-        not diff["changed_refs"] and
-        not diff["new_refs"] and
-        not diff["removed_refs"] and
-        not diff["head_changed"]
-    )
+def compare_refs(
+    old_refs: Dict[str, str],
+    new_refs: Dict[str, str]
+) -> Dict[str, any]:
+    """
+    Compare two refs snapshots and detect changes.
 
-    return is_valid, current, saved
+    Args:
+        old_refs: Previous refs snapshot.
+        new_refs: Current refs snapshot.
+
+    Returns:
+        Dictionary containing:
+        - changed: True if any changes detected
+        - added: List of branch names that were added
+        - removed: List of branch names that were removed
+        - modified: List of branch names with changed commit hash
+    """
+    old_keys = set(old_refs.keys())
+    new_keys = set(new_refs.keys())
+
+    added = list(new_keys - old_keys)
+    removed = list(old_keys - new_keys)
+
+    # Check for modified refs (same branch, different commit)
+    common_keys = old_keys & new_keys
+    modified = [
+        key for key in common_keys
+        if old_refs[key] != new_refs[key]
+    ]
+
+    changed = bool(added or removed or modified)
+
+    return {
+        "changed": changed,
+        "added": added,
+        "removed": removed,
+        "modified": modified
+    }
