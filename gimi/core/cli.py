@@ -272,8 +272,9 @@ def main() -> int:
                 for result in results[:config.retrieval.top_k]:
                     diff = diff_manager.get_diff(
                         commit_hash=result.commit.hash,
-                        max_files=config.context.max_files_per_commit,
-                        max_lines_per_file=config.context.max_lines_per_file
+                        commit_message=result.commit.message,
+                        author=result.commit.author,
+                        author_date=result.commit.date.isoformat() if hasattr(result.commit, 'date') else ""
                     )
                     diffs.append({
                         'commit': result.commit,
@@ -291,17 +292,10 @@ def main() -> int:
                 from gimi.llm.prompt_builder import PromptBuilder
 
                 prompt_builder = PromptBuilder(config.llm)
-                from gimi.context.diff_manager import DiffResult
                 diff_results = []
                 for d in diffs:
-                    diff_text = d['diff']
-                    commit = d['commit']
-                    diff_results.append(DiffResult(
-                        commit_hash=commit.hash,
-                        diff_text=diff_text,
-                        files_changed=[],
-                        stats={'files': 0, 'insertions': 0, 'deletions': 0}
-                    ))
+                    diff_obj = d['diff']  # This is already a DiffResult
+                    diff_results.append(diff_obj)
                 prompt = prompt_builder.build_prompt(
                     query=args.query,
                     diff_results=diff_results
