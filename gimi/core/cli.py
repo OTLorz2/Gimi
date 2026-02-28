@@ -12,21 +12,19 @@ from typing import Optional, List, Dict, Any
 
 from gimi.core.repo import find_repo_root, get_gimi_dir, ensure_gimi_structure
 from gimi.core.lock import acquire_lock, release_lock
-from gimi.core.config import load_config, Config
-from gimi.core.refs import load_refs_snapshot, save_refs_snapshot, get_current_refs, are_refs_consistent
-from gimi.index.git import traverse_commits, get_commit_metadata
-from gimi.index.writer import IndexWriter
-from gimi.index.vector import VectorIndex
-from gimi.index.checkpoint import CheckpointManager
-from gimi.retrieval.keywords import KeywordSearcher
-from gimi.retrieval.semantic import SemanticSearcher
-from gimi.retrieval.fusion import FusionRanker
-from gimi.retrieval.rerank import Reranker
-from gimi.context.diff import DiffFetcher
-from gimi.context.prompt import PromptBuilder
-from gimi.llm.client import LLMClient
-from gimi.llm.output import OutputFormatter
-from gimi.observability.logging import RequestLogger
+from gimi.core.config import load_config, GimiConfig
+from gimi.core.refs import (
+    load_refs_snapshot,
+    save_refs_snapshot,
+    get_current_refs,
+    are_refs_consistent
+)
+from gimi.index.builder import IndexBuilder
+from gimi.index.lightweight import LightweightIndex
+from gimi.index.vector_index import VectorIndex
+from gimi.index.embeddings import get_embedding_provider
+from gimi.retrieval.engine import RetrievalEngine
+from gimi.core.logging import RequestLogger, IndexBuildLogger
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -99,7 +97,7 @@ def validate_environment() -> str:
         if not repo_root:
             print("Error: Not a git repository. Please run gimi inside a git repository.", file=sys.stderr)
             sys.exit(1)
-        return repo_root
+        return str(repo_root)
     except Exception as e:
         print(f"Error finding repository root: {e}", file=sys.stderr)
         sys.exit(1)
@@ -108,7 +106,7 @@ def validate_environment() -> str:
 def build_index_if_needed(
     repo_root: str,
     gimi_dir: str,
-    config: Config,
+    config: GimiConfig,
     force_rebuild: bool = False,
     verbose: bool = False
 ) -> bool:
@@ -124,17 +122,20 @@ def build_index_if_needed(
     Returns:
         bool: True if index is ready, False otherwise
     """
-    index_dir = os.path.join(gimi_dir, 'index')
-    vectors_dir = os.path.join(gimi_dir, 'vectors')
+    from pathlib import Path
+
+    gimi_path = Path(gimi_dir)
+    index_dir = gimi_path / 'index'
+    vectors_dir = gimi_path / 'vectors'
 
     # Check if we need to build the index
-    index_exists = os.path.exists(index_dir) and os.listdir(index_dir)
+    index_exists = index_dir.exists() and any(index_dir.iterdir())
 
     if index_exists and not force_rebuild:
         # Check if index is still valid
-        snapshot = load_refs_snapshot(gimi_dir)
+        snapshot = load_refs_snapshot(gimi_path)
         if snapshot:
-            current_refs = get_current_refs(repo_root)
+            current_refs = get_current_refs(Path(repo_root))
             if are_refs_consistent(snapshot, current_refs):
                 if verbose:
                     print("Using existing index (refs match)")
@@ -151,54 +152,18 @@ def build_index_if_needed(
         print("Building commit index...")
 
     try:
-        # Initialize checkpoint manager
-        checkpoint_mgr = CheckpointManager(gimi_dir)
+        # Initialize index builder
+        builder = IndexBuilder(
+            repo_root=Path(repo_root),
+            gimi_dir=gimi_path,
+            config=config.index
+        )
 
-        # Get branches to index
-        branches = config.get('index_branches', ['HEAD'])
-
-        # Create index writer
-        index_writer = IndexWriter(index_dir)
-
-        # Create vector index (if embedding is available)
-        vector_index = None
-        try:
-            vector_index = VectorIndex(vectors_dir)
-        except Exception as e:
-            if verbose:
-                print(f"Warning: Could not initialize vector index: {e}")
-
-        # Traverse commits and build index
-        total_commits = 0
-        for branch in branches:
-            if verbose:
-                print(f"  Indexing branch: {branch}")
-
-            for commit_data in traverse_commits(repo_root, branch, limit=config.get('max_commits')):
-                # Write to lightweight index
-                index_writer.write_commit(commit_data)
-
-                # Write to vector index if available
-                if vector_index:
-                    vector_index.add_commit(commit_data)
-
-                total_commits += 1
-
-                # Checkpoint periodically
-                if total_commits % 100 == 0:
-                    checkpoint_mgr.save_checkpoint(branch, commit_data['hash'])
-
-        # Finalize indexes
-        index_writer.close()
-        if vector_index:
-            vector_index.close()
-
-        # Update refs snapshot
-        current_refs = get_current_refs(repo_root)
-        save_refs_snapshot(gimi_dir, current_refs)
+        # Build index
+        builder.build(incremental=not force_rebuild)
 
         if verbose:
-            print(f"Index built successfully with {total_commits} commits")
+            print(f"Index built successfully")
 
         return True
 
@@ -221,17 +186,17 @@ def main() -> int:
     repo_root = validate_environment()
 
     # Get .gimi directory
-    gimi_dir = get_gimi_dir(repo_root)
+    gimi_dir = get_gimi_dir(Path(repo_root))
 
     # Ensure .gimi structure exists
-    ensure_gimi_structure(repo_root)
+    ensure_gimi_structure(Path(repo_root))
 
     # Load configuration
     config = load_config(gimi_dir)
 
     # Override config with CLI args
     if args.top_k:
-        config.set('top_k', args.top_k)
+        config.set('retrieval.top_k', args.top_k)
 
     # Acquire lock for write operations
     lock_file = os.path.join(gimi_dir, '.lock')
@@ -252,7 +217,7 @@ def main() -> int:
         # Build index if needed
         if not build_index_if_needed(
             repo_root=repo_root,
-            gimi_dir=gimi_dir,
+            gimi_dir=str(gimi_dir),
             config=config,
             force_rebuild=args.rebuild_index,
             verbose=args.verbose
@@ -260,113 +225,103 @@ def main() -> int:
             print("Error: Failed to build or update index.", file=sys.stderr)
             return 1
 
-        # Initialize retrieval components
-        index_dir = os.path.join(gimi_dir, 'index')
-        vectors_dir = os.path.join(gimi_dir, 'vectors')
+        # Initialize retrieval engine
+        index_dir = gimi_dir / 'index'
+        vectors_dir = gimi_dir / 'vectors'
 
-        keyword_searcher = KeywordSearcher(index_dir)
-        semantic_searcher = SemanticSearcher(vectors_dir)
-        fusion_ranker = FusionRanker()
-        reranker = Reranker() if config.get('use_reranker', False) else None
+        # Get embedding provider
+        embedding_provider = get_embedding_provider(config.index)
 
-        # Stage 1: Keyword and path retrieval
-        if args.verbose:
-            print("Searching for relevant commits...")
+        # Initialize retrieval engine
+        with LightweightIndex(index_dir) as lightweight_index:
+            lightweight_index.initialize()
 
-        candidates = keyword_searcher.search(
-            query=args.query,
-            file_path=args.file_path,
-            branch=args.branch,
-            limit=config.get('candidate_limit', 100)
-        )
+            with VectorIndex(vectors_dir) as vector_index:
+                vector_index.initialize()
 
-        if args.verbose:
-            print(f"  Found {len(candidates)} candidates via keyword search")
+                retrieval_engine = RetrievalEngine(
+                    lightweight_index=lightweight_index,
+                    vector_index=vector_index,
+                    embedding_provider=embedding_provider,
+                    config=config.retrieval
+                )
 
-        # Stage 2: Semantic retrieval and fusion
-        if semantic_searcher.is_available():
-            semantic_results = semantic_searcher.search(
-                query=args.query,
-                candidate_hashes=[c['hash'] for c in candidates],
-                limit=config.get('top_k', 25)
-            )
+                # Perform search
+                if args.verbose:
+                    print("Searching for relevant commits...")
 
-            top_commits = fusion_ranker.fuse(
-                keyword_results=candidates,
-                semantic_results=semantic_results,
-                top_k=config.get('top_k', 25)
-            )
-        else:
-            top_commits = candidates[:config.get('top_k', 25)]
+                file_paths = [args.file_path] if args.file_path else None
+                results = retrieval_engine.search(
+                    query=args.query,
+                    file_paths=file_paths
+                )
 
-        if args.verbose:
-            print(f"  Selected top {len(top_commits)} commits after fusion")
+                if args.verbose:
+                    print(f"  Found {len(results)} relevant commits")
 
-        # Stage 3: Optional reranking
-        if reranker and reranker.is_available():
-            if args.verbose:
-                print("Reranking commits...")
-            top_commits = reranker.rerank(
-                query=args.query,
-                commits=top_commits,
-                top_k=config.get('final_top_k', 10)
-            )
-            if args.verbose:
-                print(f"  Final selection: {len(top_commits)} commits")
+                # Get diffs for top results
+                from gimi.context.diff_manager import DiffManager
 
-        # Fetch diffs for top commits
-        if args.verbose:
-            print("Fetching diffs...")
+                diff_manager = DiffManager(
+                    repo_root=Path(repo_root),
+                    cache_dir=gimi_dir / 'cache'
+                )
 
-        diff_fetcher = DiffFetcher(repo_root, cache_dir=os.path.join(gimi_dir, 'cache'))
-        diffs = []
+                diffs = []
+                for result in results[:config.retrieval.top_k]:
+                    diff = diff_manager.get_diff(
+                        commit_hash=result.commit.hash,
+                        max_files=config.context.max_files_per_commit,
+                        max_lines_per_file=config.context.max_lines_per_file
+                    )
+                    diffs.append({
+                        'commit': result.commit,
+                        'diff': diff
+                    })
 
-        for commit in top_commits:
-            diff_data = diff_fetcher.fetch(
-                commit_hash=commit['hash'],
-                max_files=config.get('max_files_per_commit', 10),
-                max_lines_per_file=config.get('max_lines_per_file', 100)
-            )
-            diffs.append({
-                'commit': commit,
-                'diff': diff_data
-            })
+                if args.verbose:
+                    print(f"  Fetched diffs for {len(diffs)} commits")
 
-        if args.verbose:
-            print(f"  Fetched diffs for {len(diffs)} commits")
+                # Call LLM
+                if args.verbose:
+                    print("Generating suggestions...")
 
-        # Build prompt and call LLM
-        if args.verbose:
-            print("Generating suggestions...")
+                from gimi.llm.client import LLMClient
+                from gimi.llm.prompt_builder import PromptBuilder
 
-        prompt_builder = PromptBuilder()
-        prompt = prompt_builder.build(
-            query=args.query,
-            diffs=diffs,
-            file_path=args.file_path
-        )
+                prompt_builder = PromptBuilder(config.llm)
+                prompt = prompt_builder.build_prompt(
+                    query=args.query,
+                    diffs=diffs
+                )
 
-        llm_client = LLMClient(config)
-        response = llm_client.generate(prompt)
+                llm_client = LLMClient(config.llm)
+                response = llm_client.generate(prompt)
 
-        # Format and output results
-        output_formatter = OutputFormatter()
-        formatted_output = output_formatter.format(
-            response=response,
-            referenced_commits=[d['commit'] for d in diffs]
-        )
+                # Output results
+                print()
+                print("=" * 60)
+                print("Gimi Suggestion")
+                print("=" * 60)
+                print()
+                print(response.get('text', 'No response generated.'))
+                print()
+                print("-" * 60)
+                print(f"Referenced {len(diffs)} commits:")
+                for d in diffs:
+                    commit = d['commit']
+                    print(f"  - {commit.hash[:7]}: {commit.message[:50]}...")
+                print("-" * 60)
 
-        print(formatted_output)
-
-        # Log the request
-        logger.end_request(
-            request_id=request_id,
-            success=True,
-            candidate_count=len(candidates),
-            top_k=len(top_commits),
-            diff_count=len(diffs),
-            llm_duration=response.get('duration', 0)
-        )
+                # Log the request
+                logger.end_request(
+                    request_id=request_id,
+                    success=True,
+                    candidate_count=len(results),
+                    top_k=len(diffs),
+                    diff_count=len(diffs),
+                    llm_duration=response.get('duration', 0)
+                )
 
         return 0
 
