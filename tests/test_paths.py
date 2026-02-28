@@ -14,22 +14,24 @@ from gimi.utils.paths import GimiPaths
 class TestGimiPaths:
     """测试GimiPaths类"""
 
-    def test_init(self):
+    def test_init(self, tmp_path):
         """测试初始化"""
-        paths = GimiPaths("/tmp/test-repo")
-        assert paths.repo_root == Path("/tmp/test-repo").resolve()
-        assert paths.gimi_dir == Path("/tmp/test-repo/.gimi").resolve()
+        repo_path = tmp_path / "test-repo"
+        paths = GimiPaths(repo_path)
+        assert paths.repo_root == repo_path.resolve()
+        assert paths.gimi_dir == repo_path / ".gimi"
 
-    def test_directories(self):
+    def test_directories(self, tmp_path):
         """测试目录属性"""
-        paths = GimiPaths("/tmp/test-repo")
+        repo_path = tmp_path / "test-repo"
+        paths = GimiPaths(repo_path)
 
-        assert paths.index_dir == Path("/tmp/test-repo/.gimi/index").resolve()
-        assert paths.vectors_dir == Path("/tmp/test-repo/.gimi/vectors").resolve()
-        assert paths.cache_dir == Path("/tmp/test-repo/.gimi/cache").resolve()
-        assert paths.logs_dir == Path("/tmp/test-repo/.gimi/logs").resolve()
-        assert paths.config_file == Path("/tmp/test-repo/.gimi/config.json").resolve()
-        assert paths.refs_snapshot_file == Path("/tmp/test-repo/.gimi/refs_snapshot.json").resolve()
+        assert paths.index_dir == repo_path / ".gimi" / "index"
+        assert paths.vectors_dir == repo_path / ".gimi" / "vectors"
+        assert paths.cache_dir == repo_path / ".gimi" / "cache"
+        assert paths.logs_dir == repo_path / ".gimi" / "logs"
+        assert paths.config_file == repo_path / ".gimi" / "config.json"
+        assert paths.refs_snapshot_file == repo_path / ".gimi" / "refs_snapshot.json"
 
     def test_ensure_directories(self, tmp_path):
         """测试创建目录"""
