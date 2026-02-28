@@ -170,15 +170,15 @@ def get_commit_metadata(repo_root: Path, commit_hash: str) -> Optional[CommitMet
     # Use %s for subject (single line) instead of %B (multi-line body)
     # This makes parsing much simpler and more reliable
     format_str = (
-        "%H%n"  # hash
-        "%an%n"  # author name
-        "%ae%n"  # author email
-        "%ai%n"  # author date
-        "%cn%n"  # committer name
-        "%ce%n"  # committer email
-        "%ci%n"  # committer date
-        "%P%n"  # parent hashes
-        "%s"  # subject (single line message)
+        "%H%n"  # hash (line 0)
+        "%an%n"  # author name (line 1)
+        "%ae%n"  # author email (line 2)
+        "%ai%n"  # author date (line 3)
+        "%cn%n"  # committer name (line 4)
+        "%ce%n"  # committer email (line 5)
+        "%ci%n"  # committer date (line 6)
+        "%P%n"  # parent hashes (line 7)
+        "%s"  # subject/message (final line)
     )
 
     try:
@@ -192,11 +192,13 @@ def get_commit_metadata(repo_root: Path, commit_hash: str) -> Optional[CommitMet
     except subprocess.CalledProcessError:
         return None
 
-    lines = result.stdout.strip().split("\n")
+    lines = result.stdout.rstrip("\n").split("\n")
 
-    # Need exactly 9 lines: 8 header fields + 1 subject line
-    # For initial commits: hash(0), an(1), ae(2), ai(3), cn(4), ce(5), ci(6), P(7-empty), s(8)
-    # For normal commits: hash(0), an(1), ae(2), ai(3), cn(4), ce(5), ci(6), P(7-hash), s(8)
+    # We need at least 9 lines: 8 metadata fields + 1 subject line
+    # The format produces exactly 9 lines for initial commits:
+    #   lines[0]=hash, lines[1]=author, lines[2]=email, lines[3]=date
+    #   lines[4]=committer, lines[5]=committer_email, lines[6]=committer_date
+    #   lines[7]=parents (empty for initial commit), lines[8]=message
     if len(lines) < 9:
         return None
 
