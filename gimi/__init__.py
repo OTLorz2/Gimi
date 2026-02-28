@@ -17,8 +17,10 @@ __author__ = "Gimi Team"
 
 # Core modules - use core package
 from .core.repo import (
-    RepoResolver,
-    initialize_repo,
+    find_repo_root,
+    ensure_gimi_structure,
+    check_gimi_structure,
+    get_gimi_dir,
     RepoError,
 )
 
@@ -46,8 +48,10 @@ __all__ = [
     # Version
     "__version__",
     # Repository
-    "RepoResolver",
-    "initialize_repo",
+    "find_repo_root",
+    "ensure_gimi_structure",
+    "check_gimi_structure",
+    "get_gimi_dir",
     "RepoError",
     # Locking
     "FileLock",

@@ -8,12 +8,14 @@ This module handles:
 - Batching for large repositories
 """
 
+import hashlib
+import json
+import os
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Set, Tuple
-import json
 
 
 @dataclass
@@ -272,6 +274,190 @@ class GitTraversal:
             commits.append(commit)
 
         return commits
+
+
+# Standalone functions for simpler API usage
+def traverse_commits(
+    repo_root: Path,
+    branches: Optional[List[str]] = None,
+    max_commits: int = 0,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
+    batch_size: int = 100,
+) -> Iterator[CommitMetadata]:
+    """
+    Traverse commits in a git repository.
+
+    Args:
+        repo_root: Path to the git repository
+        branches: List of branches to traverse (None = all)
+        max_commits: Maximum commits to yield (0 = unlimited)
+        since: Only yield commits after this date
+        until: Only yield commits before this date
+        batch_size: Number of commits to fetch per batch
+
+    Yields:
+        CommitMetadata for each commit
+    """
+    traversal = GitTraversal(repo_root)
+    yield from traversal.traverse_commits(
+        branches=branches,
+        max_commits=max_commits,
+        since=since,
+        until=until,
+        batch_size=batch_size,
+    )
+
+
+def get_commit_metadata(
+    repo_root: Path,
+    commit_hash: str,
+    branch: str = ""
+) -> CommitMetadata:
+    """
+    Get metadata for a single commit.
+
+    Args:
+        repo_root: Path to the git repository
+        commit_hash: Hash of the commit
+        branch: Branch name (optional)
+
+    Returns:
+        CommitMetadata for the commit
+
+    Raises:
+        GitTraversalError: If the commit cannot be found
+    """
+    traversal = GitTraversal(repo_root)
+
+    # Use git show to get single commit info
+    result = traversal._run_git([
+        'show',
+        '--format=%H|%an|%ae|%at|%cn|%ce|%ct|%P|%s',
+        '--no-patch',
+        commit_hash
+    ], check=False)
+
+    if result.returncode != 0:
+        raise GitTraversalError(f"Failed to get commit metadata for {commit_hash}")
+
+    # Parse the output
+    lines = result.stdout.strip().split('\n')
+    if not lines or '|' not in lines[0]:
+        raise GitTraversalError(f"Invalid commit data for {commit_hash}")
+
+    parts = lines[0].split('|', 8)
+    if len(parts) < 9:
+        raise GitTraversalError(f"Incomplete commit data for {commit_hash}")
+
+    # Get changed files
+    files_result = traversal._run_git([
+        'diff-tree',
+        '--no-commit-id',
+        '--name-only',
+        '-r',
+        commit_hash
+    ], check=False)
+
+    files_changed = []
+    if files_result.returncode == 0:
+        files_changed = [f.strip() for f in files_result.stdout.strip().split('\n') if f.strip()]
+
+    metadata = CommitMetadata(
+        hash=parts[0],
+        author_name=parts[1],
+        author_email=parts[2],
+        author_timestamp=int(parts[3]) if parts[3].isdigit() else 0,
+        committer_name=parts[4],
+        committer_email=parts[5],
+        committer_timestamp=int(parts[6]) if parts[6].isdigit() else 0,
+        parent_hashes=parts[7].split() if parts[7] else [],
+        message=parts[8],
+        files_changed=files_changed,
+        branch=branch,
+    )
+
+    return metadata
+
+
+def get_changed_files(
+    repo_root: Path,
+    commit_hash: str,
+    include_status: bool = False
+) -> List[str]:
+    """
+    Get list of files changed in a commit.
+
+    Args:
+        repo_root: Path to the git repository
+        commit_hash: Hash of the commit
+        include_status: If True, return dicts with 'status' and 'file' keys
+
+    Returns:
+        List of file paths, or list of dicts if include_status=True
+    """
+    traversal = GitTraversal(repo_root)
+
+    if include_status:
+        # Use diff-tree with status
+        result = traversal._run_git([
+            'diff-tree',
+            '--no-commit-id',
+            '--name-status',
+            '-r',
+            commit_hash
+        ], check=False)
+
+        files = []
+        if result.returncode == 0:
+            for line in result.stdout.strip().split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split('\t', 1)
+                if len(parts) == 2:
+                    files.append({'status': parts[0], 'file': parts[1]})
+        return files
+    else:
+        # Just get file names
+        result = traversal._run_git([
+            'diff-tree',
+            '--no-commit-id',
+            '--name-only',
+            '-r',
+            commit_hash
+        ], check=False)
+
+        files = []
+        if result.returncode == 0:
+            files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
+        return files
+
+
+def run_git_command(args: List[str], cwd: Optional[Path] = None, check: bool = True) -> 'subprocess.CompletedProcess[str]':
+    """
+    Run a git command.
+
+    Args:
+        args: Git command arguments
+        cwd: Working directory
+        check: Whether to raise on non-zero exit
+
+    Returns:
+        CompletedProcess instance
+    """
+    result = subprocess.run(
+        ['git'] + args,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False
+    )
+    if check and result.returncode != 0:
+        raise GitTraversalError(
+            f"Git command failed: git {' '.join(args)}\nError: {result.stderr}"
+        )
+    return result
 
 
 if __name__ == '__main__':

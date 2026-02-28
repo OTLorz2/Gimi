@@ -16,6 +16,11 @@ class RepoError(Exception):
     pass
 
 
+class NotAGitRepoError(RepoError):
+    """Error raised when not inside a git repository."""
+    pass
+
+
 # Alias for backward compatibility
 GimiRepoError = RepoError
 
