@@ -24,7 +24,7 @@ from gimi.index.lightweight import LightweightIndex
 from gimi.index.vector_index import VectorIndex
 from gimi.index.embeddings import get_embedding_provider
 from gimi.retrieval.engine import RetrievalEngine
-from gimi.core.logging import RequestLogger, IndexBuildLogger
+from gimi.observability.logging import RequestLogger, IndexBuildLogger
 
 
 def create_parser() -> argparse.ArgumentParser:
