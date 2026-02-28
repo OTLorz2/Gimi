@@ -74,7 +74,7 @@ class TestSaveConfig:
         config = {"test": "value"}
         config_path = temp_dir / "config.json"
 
-        save_config(config, config_path)
+        save_config(config_path, config)
 
         assert config_path.exists()
         saved = json.loads(config_path.read_text())
@@ -86,7 +86,7 @@ class TestSaveConfig:
         config_path.write_text(json.dumps({"old": "value"}))
 
         new_config = {"new": "value"}
-        save_config(new_config, config_path)
+        save_config(config_path, new_config)
 
         saved = json.loads(config_path.read_text())
         assert saved == {"new": "value"}
@@ -96,7 +96,7 @@ class TestSaveConfig:
         config = {"test": "value"}
         config_path = temp_dir / "subdir" / "config.json"
 
-        save_config(config, config_path)
+        save_config(config_path, config)
 
         assert config_path.exists()
 

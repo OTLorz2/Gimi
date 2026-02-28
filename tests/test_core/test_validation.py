@@ -77,6 +77,12 @@ class TestValidateIndex:
         snapshot_path = gimi_dir / "refs_snapshot.json"
         snapshot_path.write_text(json.dumps(sample_refs_snapshot))
 
+        # Remove the index directory that was created by the gimi_dir fixture
+        import shutil
+        index_dir = gimi_dir / "index"
+        if index_dir.exists():
+            shutil.rmtree(index_dir)
+
         result = validate_index(gimi_dir.parent)
 
         assert result.status == IndexStatus.MISSING_INDEX

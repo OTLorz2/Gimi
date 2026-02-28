@@ -101,13 +101,13 @@ class TestVectorIndex(unittest.TestCase):
         commit = CommitMeta(
             hash="abc123def456789012345678901234567890abcd",
             message="Test commit for authentication feature",
-            author="Test User",
+            author_name="Test User",
             author_email="test@example.com",
             author_timestamp=1709251200,
             committer_name="Test User",
             committer_email="test@example.com",
             committer_timestamp=1709251200,
-            changed_files=["src/auth.py", "src/login.py"],
+            files_changed=["src/auth.py", "src/login.py"],
             branches=["main"]
         )
 
@@ -123,13 +123,13 @@ class TestVectorIndex(unittest.TestCase):
             CommitMeta(
                 hash=f"abc{i:03d}def456789012345678901234567890abcd",
                 message=msg,
-                author="Test User",
+                author_name="Test User",
                 author_email="test@example.com",
                 author_timestamp=1709251200 + i,
                 committer_name="Test User",
                 committer_email="test@example.com",
                 committer_timestamp=1709251200 + i,
-                changed_files=["src/auth.py"],
+                files_changed=["src/auth.py"],
                 branches=["main"]
             )
             for i, msg in enumerate([
@@ -161,13 +161,13 @@ class TestVectorIndex(unittest.TestCase):
         commit = CommitMeta(
             hash="abc123def456789012345678901234567890abcd",
             message="Test commit",
-            author="Test User",
+            author_name="Test User",
             author_email="test@example.com",
             author_timestamp=1709251200,
             committer_name="Test User",
             committer_email="test@example.com",
             committer_timestamp=1709251200,
-            changed_files=["src/test.py"],
+            files_changed=["src/test.py"],
             branches=["main"]
         )
 
