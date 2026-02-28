@@ -26,10 +26,14 @@ gimi/index/vector_index.py
 gimi/llm/__init__.py
 gimi/llm/client.py
 gimi/llm/prompt_builder.py
+gimi/observability/__init__.py
+gimi/observability/logging.py
 gimi/retrieval/__init__.py
 gimi/retrieval/engine.py
 tests/__init__.py
+tests/test_cli.py
 tests/test_config.py
+tests/test_e2e.py
 tests/test_git.py
 tests/test_integration.py
 tests/test_lock.py
