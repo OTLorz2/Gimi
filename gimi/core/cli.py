@@ -291,7 +291,7 @@ def main() -> int:
                 from gimi.llm.client import OpenAIClient, AnthropicClient
                 from gimi.llm.prompt_builder import PromptBuilder
 
-                prompt_builder = PromptBuilder(config.llm)
+                prompt_builder = PromptBuilder(config.llm.max_context_tokens)
                 diff_results = []
                 for d in diffs:
                     diff_obj = d['diff']  # This is already a DiffResult
