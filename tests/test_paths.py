@@ -17,19 +17,19 @@ class TestGimiPaths:
     def test_init(self):
         """测试初始化"""
         paths = GimiPaths("/tmp/test-repo")
-        assert paths.repo_root == Path("/tmp/test-repo")
-        assert paths.gimi_dir == Path("/tmp/test-repo/.gimi")
+        assert paths.repo_root == Path("/tmp/test-repo").resolve()
+        assert paths.gimi_dir == Path("/tmp/test-repo/.gimi").resolve()
 
     def test_directories(self):
         """测试目录属性"""
         paths = GimiPaths("/tmp/test-repo")
 
-        assert paths.index_dir == Path("/tmp/test-repo/.gimi/index")
-        assert paths.vectors_dir == Path("/tmp/test-repo/.gimi/vectors")
-        assert paths.cache_dir == Path("/tmp/test-repo/.gimi/cache")
-        assert paths.logs_dir == Path("/tmp/test-repo/.gimi/logs")
-        assert paths.config_file == Path("/tmp/test-repo/.gimi/config.json")
-        assert paths.refs_snapshot_file == Path("/tmp/test-repo/.gimi/refs_snapshot.json")
+        assert paths.index_dir == Path("/tmp/test-repo/.gimi/index").resolve()
+        assert paths.vectors_dir == Path("/tmp/test-repo/.gimi/vectors").resolve()
+        assert paths.cache_dir == Path("/tmp/test-repo/.gimi/cache").resolve()
+        assert paths.logs_dir == Path("/tmp/test-repo/.gimi/logs").resolve()
+        assert paths.config_file == Path("/tmp/test-repo/.gimi/config.json").resolve()
+        assert paths.refs_snapshot_file == Path("/tmp/test-repo/.gimi/refs_snapshot.json").resolve()
 
     def test_ensure_directories(self, tmp_path):
         """测试创建目录"""

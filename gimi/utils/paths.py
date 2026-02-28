@@ -84,11 +84,11 @@ class GimiPaths:
 
     def ensure_directories(self) -> None:
         """确保所有必要的目录结构存在"""
-        self.gimi_dir.mkdir(exist_ok=True)
-        self.index_dir.mkdir(exist_ok=True)
-        self.vectors_dir.mkdir(exist_ok=True)
-        self.cache_dir.mkdir(exist_ok=True)
-        self.logs_dir.mkdir(exist_ok=True)
+        self.gimi_dir.mkdir(parents=True, exist_ok=True)
+        self.index_dir.mkdir(parents=True, exist_ok=True)
+        self.vectors_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
 
     def get_relative_path(self, path: Path) -> Path:
         """获取相对于仓库根目录的路径"""
