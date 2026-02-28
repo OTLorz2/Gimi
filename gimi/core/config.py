@@ -220,12 +220,12 @@ DEFAULT_CONFIG = {
 }
 
 
-def get_config_path(repo_root: Path) -> Path:
+def get_config_path(repo_root: Union[str, Path]) -> Path:
     """
     Get the path to the config file.
 
     Args:
-        repo_root: Path to the repository root.
+        repo_root: Path to the repository root (can be string or Path).
 
     Returns:
         Path to the config file.
