@@ -6,6 +6,7 @@ from gimi.index.embeddings import (
     EmbeddingProvider,
     LocalEmbeddingProvider,
     APIEmbeddingProvider,
+    MockEmbeddingProvider,
     get_embedding_provider
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "EmbeddingProvider",
     "LocalEmbeddingProvider",
     "APIEmbeddingProvider",
+    "MockEmbeddingProvider",
     "get_embedding_provider",
 ]
