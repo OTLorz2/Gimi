@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from gimi.core.repo import find_repo_root, ensure_gimi_structure
+from gimi.core.repo import find_repo_root, ensure_gimi_structure, RepoError
 from gimi.core.lock import LockError
 
 
