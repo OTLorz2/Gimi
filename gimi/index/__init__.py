@@ -4,8 +4,8 @@ from gimi.index.lightweight import LightweightIndex, IndexedCommit
 from gimi.index.vector_index import VectorIndex, VectorCommit
 from gimi.index.embeddings import (
     EmbeddingProvider,
-    SentenceTransformerProvider,
-    OpenAIEmbeddingProvider,
+    LocalEmbeddingProvider,
+    APIEmbeddingProvider,
     get_embedding_provider
 )
 
@@ -15,7 +15,7 @@ __all__ = [
     "VectorIndex",
     "VectorCommit",
     "EmbeddingProvider",
-    "SentenceTransformerProvider",
-    "OpenAIEmbeddingProvider",
+    "LocalEmbeddingProvider",
+    "APIEmbeddingProvider",
     "get_embedding_provider",
 ]
