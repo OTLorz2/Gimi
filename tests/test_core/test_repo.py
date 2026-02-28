@@ -50,10 +50,12 @@ class TestFindRepoRoot:
 
     def test_find_repo_root_not_git_repo(self, temp_dir):
         """Test error when not in a git repository."""
+        from subprocess import CalledProcessError
         with patch('subprocess.run') as mock_run:
-            mock_run.return_value = MagicMock(
+            # Configure mock to raise CalledProcessError when called with check=True
+            mock_run.side_effect = CalledProcessError(
                 returncode=128,
-                stdout='',
+                cmd=['git', 'rev-parse', '--show-toplevel'],
                 stderr='fatal: not a git repository'
             )
             with pytest.raises(GimiRepoError) as exc_info:
