@@ -167,6 +167,8 @@ def get_commit_metadata(repo_root: Path, commit_hash: str) -> Optional[CommitMet
         CommitMetadata or None if commit not found
     """
     # Use git log to get commit info
+    # Use %s for subject (single line) instead of %B (multi-line body)
+    # This makes parsing much simpler and more reliable
     format_str = (
         "%H%n"  # hash
         "%an%n"  # author name
@@ -176,7 +178,7 @@ def get_commit_metadata(repo_root: Path, commit_hash: str) -> Optional[CommitMet
         "%ce%n"  # committer email
         "%ci%n"  # committer date
         "%P%n"  # parent hashes
-        "%B%x00"  # message (ends with null)
+        "%s"  # subject (single line message)
     )
 
     try:
@@ -190,15 +192,11 @@ def get_commit_metadata(repo_root: Path, commit_hash: str) -> Optional[CommitMet
     except subprocess.CalledProcessError:
         return None
 
-    parts = result.stdout.split("\x00", 1)
-    if len(parts) != 2:
-        return None
+    lines = result.stdout.strip().split("\n")
 
-    header, message = parts
-    lines = header.strip().split("\n")
-
-    # Need at least 9 lines (for initial commits without parents)
-    # 10 lines for normal commits (with parent hashes on line 7)
+    # Need exactly 9 lines: 8 header fields + 1 subject line
+    # For initial commits: hash(0), an(1), ae(2), ai(3), cn(4), ce(5), ci(6), P(7-empty), s(8)
+    # For normal commits: hash(0), an(1), ae(2), ai(3), cn(4), ce(5), ci(6), P(7-hash), s(8)
     if len(lines) < 9:
         return None
 
@@ -211,7 +209,7 @@ def get_commit_metadata(repo_root: Path, commit_hash: str) -> Optional[CommitMet
         committer_email=lines[5],
         committer_date=lines[6],
         parents=lines[7].split() if lines[7] else [],
-        message=message.strip()
+        message=lines[8]
     )
 
 
