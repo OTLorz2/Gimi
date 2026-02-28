@@ -197,7 +197,9 @@ def get_commit_metadata(repo_root: Path, commit_hash: str) -> Optional[CommitMet
     header, message = parts
     lines = header.strip().split("\n")
 
-    if len(lines) < 10:
+    # Need at least 9 lines (for initial commits without parents)
+    # 10 lines for normal commits (with parent hashes on line 7)
+    if len(lines) < 9:
         return None
 
     return CommitMetadata(
