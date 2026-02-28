@@ -215,10 +215,12 @@ def get_config_path(repo_root: Path) -> Path:
     Returns:
         Path to the config file.
     """
+    # Ensure repo_root is a Path object
+    repo_path = Path(repo_root)
     # Handle case where repo_root might already be a .gimi directory
-    if repo_root.name == ".gimi":
-        return repo_root / "config.json"
-    return repo_root / ".gimi" / "config.json"
+    if repo_path.name == ".gimi":
+        return repo_path / "config.json"
+    return repo_path / ".gimi" / "config.json"
 
 
 def load_config(repo_root: Path) -> GimiConfig:

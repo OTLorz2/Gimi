@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from gimi.vector_index import VectorIndex, SimpleEmbedding, VectorEntry
-from gimi.core.git import CommitMetadata
+from gimi.light_index import CommitMetadata
 
 
 class TestSimpleEmbedding(unittest.TestCase):
@@ -95,19 +95,14 @@ class TestVectorIndex(unittest.TestCase):
         """Test adding a commit to the index."""
         index = VectorIndex(self.gimi_path)
 
-        # CommitMetadata from gimi.index.git uses correct field names
         commit = CommitMetadata(
-            hash="abc123def456789012345678901234567890abcd",
+            commit_hash="abc123def456789012345678901234567890abcd",
+            short_hash="abc123d",
             message="Test commit for authentication feature",
-            author_name="Test User",
-            author_email="test@example.com",
-            author_timestamp=1709251200,
-            committer_name="Test User",
-            committer_email="test@example.com",
-            committer_timestamp=1709251200,
-            parent_hashes=[],
-            branches=["main"],
-            files_changed=["src/auth.py", "src/login.py"]
+            author="Test User <test@example.com>",
+            timestamp=1234567890,
+            files=["src/auth.py", "src/login.py"],
+            branch="main"
         )
 
         index.add_commit(commit)
@@ -120,17 +115,13 @@ class TestVectorIndex(unittest.TestCase):
         # Add test commits
         commits = [
             CommitMetadata(
-                hash=f"abc{i:03d}def456789012345678901234567890abcd",
+                commit_hash=f"abc{i:03d}def456789012345678901234567890abcd",
+                short_hash=f"abc{i:03d}d",
                 message=msg,
-                author="Test User",
-                author_email="test@example.com",
-                author_date="2026-03-01T00:00:00",
-                committer="Test User",
-                committer_email="test@example.com",
-                committer_date="2026-03-01T00:00:00",
-                parents=[],
-                branches=["main"],
-                changed_files=["src/auth.py"]
+                author="Test User <test@example.com>",
+                timestamp=1234567890 + i,
+                files=["src/auth.py"],
+                branch="main"
             )
             for i, msg in enumerate([
                 "Add user authentication feature",
@@ -159,17 +150,13 @@ class TestVectorIndex(unittest.TestCase):
         index1 = VectorIndex(self.gimi_path)
 
         commit = CommitMetadata(
-            hash="abc123def456789012345678901234567890abcd",
+            commit_hash="abc123def456789012345678901234567890abcd",
+            short_hash="abc123d",
             message="Test commit",
-            author="Test User",
-            author_email="test@example.com",
-            author_date="2026-03-01T00:00:00",
-            committer="Test User",
-            committer_email="test@example.com",
-            committer_date="2026-03-01T00:00:00",
-            parents=[],
-            branches=["main"],
-            changed_files=["src/test.py"]
+            author="Test User <test@example.com>",
+            timestamp=1234567890,
+            files=["src/test.py"],
+            branch="main"
         )
 
         index1.add_commit(commit)
