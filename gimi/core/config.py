@@ -36,13 +36,13 @@ class LLMConfig:
 @dataclass
 class RetrievalConfig:
     """Retrieval configuration."""
-    top_k: int = 10
-    candidate_pool_size: int = 50
-    enable_two_stage_rerank: bool = False
+    top_k: int = 20
+    keyword_candidates: int = 100
+    rerank_top_k: int = 10
+    enable_rerank: bool = False
     keyword_weight: float = 0.3
     semantic_weight: float = 0.7
     path_weight: float = 0.0
-    rerank_top_n: int = 10
 
 
 @dataclass
