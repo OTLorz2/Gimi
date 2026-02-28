@@ -1,0 +1,436 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0 -- C:\Python314\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\chenr\Desktop\project\Gimi-v1
+configfile: pytest.ini
+plugins: anyio-4.12.1, cov-7.0.0
+collecting ... collected 161 items
+
+tests/test_checkpoint.py::TestCheckpoint::test_initialization_with_defaults PASSED [  0%]
+tests/test_checkpoint.py::TestCheckpoint::test_set_and_get PASSED        [  1%]
+tests/test_checkpoint.py::TestCheckpoint::test_branch_state_management PASSED [  1%]
+tests/test_checkpoint.py::TestCheckpoint::test_atomic_save PASSED        [  2%]
+tests/test_checkpoint.py::TestCheckpoint::test_in_progress_tracking PASSED [  3%]
+tests/test_checkpoint.py::TestCheckpoint::test_failed_commits_tracking PASSED [  3%]
+tests/test_checkpoint.py::TestCheckpoint::test_can_resume PASSED         [  4%]
+tests/test_checkpoint.py::TestCheckpoint::test_get_resume_branches PASSED [  4%]
+tests/test_checkpoint.py::TestCheckpoint::test_clear PASSED              [  5%]
+tests/test_cli.py::TestCreateParser::test_parser_requires_query PASSED   [  6%]
+tests/test_cli.py::TestCreateParser::test_parser_accepts_query PASSED    [  6%]
+tests/test_cli.py::TestCreateParser::test_parser_accepts_file_option PASSED [  7%]
+tests/test_cli.py::TestCreateParser::test_parser_accepts_branch_option PASSED [  8%]
+tests/test_cli.py::TestCreateParser::test_parser_accepts_rebuild_flag PASSED [  8%]
+tests/test_cli.py::TestCreateParser::test_parser_accepts_top_k PASSED    [  9%]
+tests/test_cli.py::TestCreateParser::test_parser_accepts_verbose PASSED  [  9%]
+tests/test_cli.py::TestValidateEnvironment::test_validate_environment_success PASSED [ 10%]
+tests/test_cli.py::TestValidateEnvironment::test_validate_environment_failure PASSED [ 11%]
+tests/test_cli.py::TestMain::test_main_basic PASSED                      [ 11%]
+tests/test_cli.py::TestMain::test_main_not_git_repo PASSED               [ 12%]
+tests/test_config.py::TestRetrievalConfig::test_default_values PASSED    [ 13%]
+tests/test_config.py::TestContextConfig::test_default_values PASSED      [ 13%]
+tests/test_config.py::TestLLMConfig::test_default_values PASSED          [ 14%]
+tests/test_config.py::TestIndexConfig::test_default_values PASSED        [ 14%]
+tests/test_config.py::TestGimiConfig::test_default_values PASSED         [ 15%]
+tests/test_config.py::TestGimiConfig::test_from_dict PASSED              [ 16%]
+tests/test_config.py::TestGimiConfig::test_to_dict PASSED                [ 16%]
+tests/test_config.py::TestConfigPersistence::test_get_config_path PASSED [ 17%]
+tests/test_config.py::TestConfigPersistence::test_save_and_load_config FAILED [ 18%]
+tests/test_core/test_cli.py::TestCreateParser::test_parser_requires_query PASSED [ 18%]
+tests/test_core/test_cli.py::TestCreateParser::test_parser_accepts_query PASSED [ 19%]
+tests/test_core/test_cli.py::TestCreateParser::test_parser_accepts_file_option PASSED [ 19%]
+tests/test_core/test_cli.py::TestCreateParser::test_parser_accepts_branch_option PASSED [ 20%]
+tests/test_core/test_cli.py::TestCreateParser::test_parser_accepts_rebuild_flag PASSED [ 21%]
+tests/test_core/test_cli.py::TestCreateParser::test_parser_accepts_top_k PASSED [ 21%]
+tests/test_core/test_cli.py::TestCreateParser::test_parser_accepts_verbose PASSED [ 22%]
+tests/test_core/test_cli.py::TestValidateEnvironment::test_validate_environment_success FAILED [ 22%]
+tests/test_core/test_cli.py::TestValidateEnvironment::test_validate_environment_failure PASSED [ 23%]
+tests/test_core/test_cli.py::TestMain::test_main_basic PASSED            [ 24%]
+tests/test_core/test_cli.py::TestMain::test_main_not_git_repo FAILED     [ 24%]
+tests/test_core/test_config.py::TestLoadConfig::test_load_existing_config PASSED [ 25%]
+tests/test_core/test_config.py::TestLoadConfig::test_load_nonexistent_config_returns_defaults PASSED [ 26%]
+tests/test_core/test_config.py::TestLoadConfig::test_load_invalid_json_returns_defaults PASSED [ 26%]
+tests/test_core/test_config.py::TestLoadConfig::test_load_partial_config_merges_with_defaults PASSED [ 27%]
+tests/test_core/test_config.py::TestSaveConfig::test_save_config_creates_file FAILED [ 27%]
+tests/test_core/test_config.py::TestSaveConfig::test_save_config_overwrites_existing FAILED [ 28%]
+tests/test_core/test_config.py::TestSaveConfig::test_save_config_creates_parent_dirs PASSED [ 29%]
+tests/test_core/test_config.py::TestGetConfigValue::test_get_top_level_value PASSED [ 29%]
+tests/test_core/test_config.py::TestGetConfigValue::test_get_nested_value PASSED [ 30%]
+tests/test_core/test_config.py::TestGetConfigValue::test_get_nonexistent_value PASSED [ 31%]
+tests/test_core/test_config.py::TestGetConfigValue::test_get_nonexistent_nested_value PASSED [ 31%]
+tests/test_core/test_config.py::TestGetConfigValue::test_get_with_default PASSED [ 32%]
+tests/test_core/test_config.py::TestSetConfigValue::test_set_top_level_value PASSED [ 32%]
+tests/test_core/test_config.py::TestSetConfigValue::test_set_nested_value PASSED [ 33%]
+tests/test_core/test_config.py::TestSetConfigValue::test_set_nested_creates_parents PASSED [ 34%]
+tests/test_core/test_config.py::TestSetConfigValue::test_set_overwrites_existing PASSED [ 34%]
+tests/test_core/test_lock.py::TestAcquireLock::test_acquire_lock_creates_lock_file PASSED [ 35%]
+tests/test_core/test_lock.py::TestAcquireLock::test_acquire_lock_writes_pid PASSED [ 36%]
+tests/test_core/test_lock.py::TestAcquireLock::test_acquire_lock_already_locked_same_process PASSED [ 36%]
+tests/test_core/test_lock.py::TestAcquireLock::test_acquire_lock_already_locked_different_process PASSED [ 37%]
+tests/test_core/test_lock.py::TestAcquireLock::test_acquire_lock_with_timeout PASSED [ 37%]
+tests/test_core/test_lock.py::TestReleaseLock::test_release_lock_removes_file PASSED [ 38%]
+tests/test_core/test_lock.py::TestReleaseLock::test_release_lock_not_locked PASSED [ 39%]
+tests/test_core/test_lock.py::TestReleaseLock::test_release_lock_owned_by_other_process PASSED [ 39%]
+tests/test_core/test_lock.py::TestIsLocked::test_is_locked_true PASSED   [ 40%]
+tests/test_core/test_lock.py::TestIsLocked::test_is_locked_false PASSED  [ 40%]
+tests/test_core/test_lock.py::TestIsLocked::test_is_locked_stale_lock PASSED [ 41%]
+tests/test_core/test_refs.py::TestLoadRefsSnapshot::test_load_existing_snapshot PASSED [ 42%]
+tests/test_core/test_refs.py::TestLoadRefsSnapshot::test_load_nonexistent_snapshot PASSED [ 42%]
+tests/test_core/test_refs.py::TestLoadRefsSnapshot::test_load_invalid_json PASSED [ 43%]
+tests/test_core/test_refs.py::TestSaveRefsSnapshot::test_save_snapshot_creates_file PASSED [ 44%]
+tests/test_core/test_refs.py::TestSaveRefsSnapshot::test_save_snapshot_overwrites_existing PASSED [ 44%]
+tests/test_core/test_refs.py::TestSaveRefsSnapshot::test_save_snapshot_pretty_print PASSED [ 45%]
+tests/test_core/test_refs.py::TestGetCurrentRefs::test_get_current_refs_success FAILED [ 45%]
+tests/test_core/test_refs.py::TestGetCurrentRefs::test_get_current_refs_empty FAILED [ 46%]
+tests/test_core/test_refs.py::TestGetCurrentRefs::test_get_current_refs_git_error PASSED [ 47%]
+tests/test_core/test_refs.py::TestCompareRefs::test_compare_identical_refs PASSED [ 47%]
+tests/test_core/test_refs.py::TestCompareRefs::test_compare_added_refs PASSED [ 48%]
+tests/test_core/test_refs.py::TestCompareRefs::test_compare_removed_refs PASSED [ 49%]
+tests/test_core/test_refs.py::TestCompareRefs::test_compare_modified_refs PASSED [ 49%]
+tests/test_core/test_refs.py::TestCompareRefs::test_compare_empty_refs PASSED [ 50%]
+tests/test_core/test_repo.py::TestFindRepoRoot::test_find_repo_root_success PASSED [ 50%]
+tests/test_core/test_repo.py::TestFindRepoRoot::test_find_repo_root_from_subdirectory PASSED [ 51%]
+tests/test_core/test_repo.py::TestFindRepoRoot::test_find_repo_root_not_git_repo PASSED [ 52%]
+tests/test_core/test_repo.py::TestFindRepoRoot::test_find_repo_root_subprocess_error PASSED [ 52%]
+tests/test_core/test_repo.py::TestGetGimiDir::test_get_gimi_dir PASSED   [ 53%]
+tests/test_core/test_repo.py::TestGetGimiDir::test_get_gimi_dir_creates_nothing PASSED [ 54%]
+tests/test_core/test_repo.py::TestEnsureGimiStructure::test_ensure_structure_creates_all_dirs PASSED [ 54%]
+tests/test_core/test_repo.py::TestEnsureGimiStructure::test_ensure_structure_idempotent PASSED [ 55%]
+tests/test_core/test_repo.py::TestEnsureGimiStructure::test_ensure_structure_creates_gimi_dir_first PASSED [ 55%]
+tests/test_core/test_validation.py::TestValidateIndex::test_validate_valid_index PASSED [ 56%]
+tests/test_core/test_validation.py::TestValidateIndex::test_validate_stale_index PASSED [ 57%]
+tests/test_core/test_validation.py::TestValidateIndex::test_validate_missing_snapshot PASSED [ 57%]
+tests/test_core/test_validation.py::TestValidateIndex::test_validate_missing_index PASSED [ 58%]
+tests/test_core/test_validation.py::TestValidateIndex::test_validate_empty_index PASSED [ 59%]
+tests/test_core/test_validation.py::TestIndexStatus::test_valid_status PASSED [ 59%]
+tests/test_core/test_validation.py::TestIndexStatus::test_stale_status PASSED [ 60%]
+tests/test_core/test_validation.py::TestIndexStatus::test_missing_snapshot_status PASSED [ 60%]
+tests/test_core/test_validation.py::TestIndexStatus::test_missing_index_status PASSED [ 61%]
+tests/test_core/test_validation.py::TestIndexStatus::test_empty_index_status PASSED [ 62%]
+tests/test_e2e.py::TestEndToEndFlow::test_full_flow_simple_query PASSED  [ 62%]
+tests/test_e2e.py::TestEndToEndFlow::test_not_in_git_repo PASSED         [ 63%]
+tests/test_e2e.py::TestCLIIntegration::test_index_building_flow PASSED   [ 63%]
+tests/test_git.py::TestGitOperations::test_get_branches PASSED           [ 64%]
+tests/test_git.py::TestGitOperations::test_get_commit_files PASSED       [ 65%]
+tests/test_git.py::TestGitOperations::test_get_commit_metadata PASSED    [ 65%]
+tests/test_git.py::TestGitOperations::test_get_commits_for_branch PASSED [ 66%]
+tests/test_git.py::TestGitOperations::test_get_current_branch PASSED     [ 67%]
+tests/test_git.py::TestCommitMetadata::test_short_hash PASSED            [ 67%]
+tests/test_git.py::TestCommitMetadata::test_to_dict PASSED               [ 68%]
+tests/test_index/test_git_traverse.py::TestCommitMetadata::test_commit_metadata_creation PASSED [ 68%]
+tests/test_index/test_git_traverse.py::TestCommitMetadata::test_commit_metadata_to_dict PASSED [ 69%]
+tests/test_index/test_git_traverse.py::TestCommitMetadata::test_commit_metadata_from_dict PASSED [ 70%]
+tests/test_index/test_git_traverse.py::TestGitTraversal::test_init PASSED [ 70%]
+tests/test_index/test_git_traverse.py::TestGitTraversal::test_run_git_success PASSED [ 71%]
+tests/test_index/test_git_traverse.py::TestGitTraversal::test_run_git_error PASSED [ 72%]
+tests/test_index/test_git_traverse.py::TestGitTraversalTraversal::test_traverse_commits_basic PASSED [ 72%]
+tests/test_index/test_git_traverse.py::TestGitTraversalBranches::test_get_branches PASSED [ 73%]
+tests/test_indexer.py::TestBatchProgress::test_creation PASSED           [ 73%]
+tests/test_indexer.py::TestBatchProgress::test_from_dict PASSED          [ 74%]
+tests/test_indexer.py::TestBatchProgress::test_to_dict PASSED            [ 75%]
+tests/test_indexer.py::TestIndexingProgress::test_creation PASSED        [ 75%]
+tests/test_indexer.py::TestIndexingProgress::test_from_dict PASSED       [ 76%]
+tests/test_indexer.py::TestIndexingProgress::test_to_dict PASSED         [ 77%]
+tests/test_indexer.py::TestIncrementalIndexer::test_creation PASSED      [ 77%]
+tests/test_indexer.py::TestIncrementalIndexer::test_load_nonexistent_progress PASSED [ 78%]
+tests/test_indexer.py::TestIncrementalIndexer::test_progress_save_and_load PASSED [ 78%]
+tests/test_integration.py::TestCLIIntegration::test_cli_help PASSED      [ 79%]
+tests/test_integration.py::TestCLIIntegration::test_gimi_structure_creation PASSED [ 80%]
+tests/test_integration.py::TestCLIIntegration::test_repo_discovery PASSED [ 80%]
+tests/test_lock.py::TestGimiLock::test_context_manager PASSED            [ 81%]
+tests/test_lock.py::TestGimiLock::test_lock_acquire_and_release PASSED   [ 81%]
+tests/test_lock.py::TestGimiLock::test_lock_creation PASSED              [ 82%]
+tests/test_lock.py::TestGimiLock::test_lock_prevents_double_acquire PASSED [ 83%]
+tests/test_lock.py::TestGimiLock::test_stale_lock_cleanup PASSED         [ 83%]
+tests/test_lock.py::TestWithLockDecorator::test_with_lock_context_manager PASSED [ 84%]
+tests/test_lock.py::TestLockError::test_lock_error_creation PASSED       [ 85%]
+tests/test_paths.py::TestGimiPaths::test_init PASSED                     [ 85%]
+tests/test_paths.py::TestGimiPaths::test_directories PASSED              [ 86%]
+tests/test_paths.py::TestGimiPaths::test_ensure_directories PASSED       [ 86%]
+tests/test_paths.py::TestGimiPathsFromCurrentDirectory::test_from_git_repo PASSED [ 87%]
+tests/test_paths.py::TestGimiPathsFromCurrentDirectory::test_not_git_repo PASSED [ 88%]
+tests/test_repo.py::TestFindRepoRoot::test_find_root_in_repo_root PASSED [ 88%]
+tests/test_repo.py::TestFindRepoRoot::test_find_root_in_subdir PASSED    [ 89%]
+tests/test_repo.py::TestFindRepoRoot::test_find_root_not_in_repo PASSED  [ 90%]
+tests/test_repo.py::TestGimiDirectory::test_ensure_gimi_structure PASSED [ 90%]
+tests/test_repo.py::TestGimiDirectory::test_get_gimi_dir PASSED          [ 91%]
+tests/test_vector_index.py::TestSimpleEmbedding::test_embed_batch PASSED [ 91%]
+tests/test_vector_index.py::TestSimpleEmbedding::test_embed_deterministic PASSED [ 92%]
+tests/test_vector_index.py::TestSimpleEmbedding::test_embed_dimensions PASSED [ 93%]
+tests/test_vector_index.py::TestSimpleEmbedding::test_embed_normalization PASSED [ 93%]
+tests/test_vector_index.py::TestVectorEntry::test_from_dict PASSED       [ 94%]
+tests/test_vector_index.py::TestVectorEntry::test_to_dict PASSED         [ 95%]
+tests/test_vector_index.py::TestVectorIndex::test_add_commit PASSED      [ 95%]
+tests/test_vector_index.py::TestVectorIndex::test_create_index PASSED    [ 96%]
+tests/test_vector_index.py::TestVectorIndex::test_save_and_load PASSED   [ 96%]
+tests/test_vector_index.py::TestVectorIndex::test_search PASSED          [ 97%]
+tests/test_vector_search.py::TestHybridSearcherWithVectorSearch::test_search_without_vector_index PASSED [ 98%]
+tests/test_vector_search.py::TestHybridSearcherWithVectorSearch::test_search_with_vector_index PASSED [ 98%]
+tests/test_vector_search.py::TestHybridSearcherWithVectorSearch::test_vector_search_disabled PASSED [ 99%]
+tests/test_vector_search.py::TestHybridSearcherWithVectorSearch::test_vector_search_error_handling PASSED [100%]
+
+================================== FAILURES ===================================
+_______________ TestConfigPersistence.test_save_and_load_config _______________
+gimi\core\config.py:309: in save_config
+    with open(config_path, 'w', encoding='utf-8') as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   PermissionError: [Errno 13] Permission denied: 'C:\\Users\\chenr\\AppData\\Local\\Temp\\tmpbax38msf'
+
+During handling of the above exception, another exception occurred:
+tests\test_config.py:128: in test_save_and_load_config
+    save_config(Path(self.temp_dir), config)
+gimi\core\config.py:312: in save_config
+    raise ConfigError(f"Failed to save configuration: {e}")
+E   gimi.core.config.ConfigError: Failed to save configuration: [Errno 13] Permission denied: 'C:\\Users\\chenr\\AppData\\Local\\Temp\\tmpbax38msf'
+__________ TestValidateEnvironment.test_validate_environment_success __________
+tests\test_core\test_cli.py:70: in test_validate_environment_success
+    assert result == Path("/path/to/repo")
+E   AssertionError: assert '\\path\\to\\repo' == WindowsPath('/path/to/repo')
+E    +  where WindowsPath('/path/to/repo') = Path('/path/to/repo')
+_______________________ TestMain.test_main_not_git_repo _______________________
+tests\test_core\test_cli.py:120: in test_main_not_git_repo
+    assert exc_info.value.code == 1
+E   assert 2 == 1
+E    +  where 2 = SystemExit(2).code
+E    +    where SystemExit(2) = <ExceptionInfo SystemExit(2) tblen=5>.value
+---------------------------- Captured stderr call -----------------------------
+usage: gimi [-h] [--file FILE_PATH] [--branch BRANCH] [--rebuild-index]
+            [--top-k TOP_K] [--verbose]
+            query
+gimi: error: unrecognized arguments: --tb=short
+________________ TestSaveConfig.test_save_config_creates_file _________________
+tests\test_core\test_config.py:81: in test_save_config_creates_file
+    assert saved["test"] == "value"
+           ^^^^^^^^^^^^^
+E   KeyError: 'test'
+_____________ TestSaveConfig.test_save_config_overwrites_existing _____________
+tests\test_core\test_config.py:92: in test_save_config_overwrites_existing
+    assert saved == {"new": "value"}
+E   AssertionError: assert {'context': {'enable_cache': True, 'max_diff_tokens': 4000, 'max_files_per_commit': 10, 'max_lines_per_file': 50, 'max_total_commits': 5, 'max_total_tokens': 4000, 'truncate_strategy': 'head'}, 'created_at': '2026-03-01T07:21:09.654773', 'index': {'batch_size': 100, 'branches': ['main', 'master'], 'embedding_dim': 384, 'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2', 'include_all_branches': False, 'max_age_days': None, 'max_commits': None}, 'llm': {'api_base': None, 'api_key': None, 'max_context_tokens': 8000, 'max_tokens': 2000, 'model': 'gpt-4o-mini', 'provider': 'openai', 'temperature': 0.3, 'timeout': 60.0}, 'observability': {'enable_metrics': True, 'log_file': None, 'log_level': 'INFO', 'max_log_size_mb': 100}, 'retrieval': {'enable_rerank': False, 'keyword_candidates': 100, 'keyword_weight': 0.3, 'path_weight': 0.0, 'rerank_top_k': 10, 'semantic_weight': 0.7, 'top_k': 20}, 'updated_at': '2026-03-01T07:21:09.654779', 'version': '0.1.0'} == {'new': 'value'}
+E     
+E     Left contains 8 more items:
+E     {'context': {'enable_cache': True,
+E                  'max_diff_tokens': 4000,
+E                  'max_files_per_commit': 10,
+E                  'max_lines_per_file': 50,
+E                  'max_total_commits': 5,
+E                  'max_total_tokens': 4000,
+E                  'truncate_strategy': 'head'},
+E      'created_at': '2026-03-01T07:21:09.654773',
+E      'index': {'batch_size': 100,
+E                'branches': ['main', 'master'],
+E                'embedding_dim': 384,
+E                'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2',
+E                'include_all_branches': False,
+E                'max_age_days': None,
+E                'max_commits': None},
+E      'llm': {'api_base': None,
+E              'api_key': None,
+E              'max_context_tokens': 8000,
+E              'max_tokens': 2000,
+E              'model': 'gpt-4o-mini',
+E              'provider': 'openai',
+E              'temperature': 0.3,
+E              'timeout': 60.0},
+E      'observability': {'enable_metrics': True,
+E                        'log_file': None,
+E                        'log_level': 'INFO',
+E                        'max_log_size_mb': 100},
+E      'retrieval': {'enable_rerank': False,
+E                    'keyword_candidates': 100,
+E                    'keyword_weight': 0.3,
+E                    'path_weight': 0.0,
+E                    'rerank_top_k': 10,
+E                    'semantic_weight': 0.7,
+E                    'top_k': 20},
+E      'updated_at': '2026-03-01T07:21:09.654779',
+E      'version': '0.1.0'}
+E     Right contains 1 more item:
+E     {'new': 'value'}
+E     
+E     Full diff:
+E       {
+E     -     'new': 'value',
+E     +     'context': {
+E     +         'enable_cache': True,
+E     +         'max_diff_tokens': 4000,
+E     +         'max_files_per_commit': 10,
+E     +         'max_lines_per_file': 50,
+E     +         'max_total_commits': 5,
+E     +         'max_total_tokens': 4000,
+E     +         'truncate_strategy': 'head',
+E     +     },
+E     +     'created_at': '2026-03-01T07:21:09.654773',
+E     +     'index': {
+E     +         'batch_size': 100,
+E     +         'branches': [
+E     +             'main',
+E     +             'master',
+E     +         ],
+E     +         'embedding_dim': 384,
+E     +         'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2',
+E     +         'include_all_branches': False,
+E     +         'max_age_days': None,
+E     +         'max_commits': None,
+E     +     },
+E     +     'llm': {
+E     +         'api_base': None,
+E     +         'api_key': None,
+E     +         'max_context_tokens': 8000,
+E     +         'max_tokens': 2000,
+E     +         'model': 'gpt-4o-mini',
+E     +         'provider': 'openai',
+E     +         'temperature': 0.3,
+E     +         'timeout': 60.0,
+E     +     },
+E     +     'observability': {
+E     +         'enable_metrics': True,
+E     +         'log_file': None,
+E     +         'log_level': 'INFO',
+E     +         'max_log_size_mb': 100,
+E     +     },
+E     +     'retrieval': {
+E     +         'enable_rerank': False,
+E     +         'keyword_candidates': 100,
+E     +         'keyword_weight': 0.3,
+E     +         'path_weight': 0.0,
+E     +         'rerank_top_k': 10,
+E     +         'semantic_weight': 0.7,
+E     +         'top_k': 20,
+E     +     },
+E     +     'updated_at': '2026-03-01T07:21:09.654779',
+E     +     'version': '0.1.0',
+E       }
+______________ TestGetCurrentRefs.test_get_current_refs_success _______________
+gimi\core\refs.py:139: in get_current_refs
+    result = subprocess.run(
+C:\Python314\Lib\subprocess.py:577: in run
+    raise CalledProcessError(retcode, process.args,
+E   subprocess.CalledProcessError: Command '['git', 'for-each-ref', '--format=%(objectname) %(refname:short)', 'refs/heads/']' returned non-zero exit status 128.
+
+During handling of the above exception, another exception occurred:
+tests\test_core\test_refs.py:98: in test_get_current_refs_success
+    result = get_current_refs(temp_dir)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+gimi\core\refs.py:157: in get_current_refs
+    raise RefsError(f"Failed to get current refs: {e.stderr}")
+E   gimi.core.refs.RefsError: Failed to get current refs: fatal: not a git repository (or any of the parent directories): .git
+_______________ TestGetCurrentRefs.test_get_current_refs_empty ________________
+gimi\core\refs.py:139: in get_current_refs
+    result = subprocess.run(
+C:\Python314\Lib\subprocess.py:577: in run
+    raise CalledProcessError(retcode, process.args,
+E   subprocess.CalledProcessError: Command '['git', 'for-each-ref', '--format=%(objectname) %(refname:short)', 'refs/heads/']' returned non-zero exit status 128.
+
+During handling of the above exception, another exception occurred:
+tests\test_core\test_refs.py:107: in test_get_current_refs_empty
+    result = get_current_refs(temp_dir)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+gimi\core\refs.py:157: in get_current_refs
+    raise RefsError(f"Failed to get current refs: {e.stderr}")
+E   gimi.core.refs.RefsError: Failed to get current refs: fatal: not a git repository (or any of the parent directories): .git
+=========================== short test summary info ===========================
+FAILED tests/test_config.py::TestConfigPersistence::test_save_and_load_config - gimi.core.config.ConfigError: Failed to save configuration: [Errno 13] Permission denied: 'C:\\Users\\chenr\\AppData\\Local\\Temp\\tmpbax38msf'
+FAILED tests/test_core/test_cli.py::TestValidateEnvironment::test_validate_environment_success - AssertionError: assert '\\path\\to\\repo' == WindowsPath('/path/to/repo')
+ +  where WindowsPath('/path/to/repo') = Path('/path/to/repo')
+FAILED tests/test_core/test_cli.py::TestMain::test_main_not_git_repo - assert 2 == 1
+ +  where 2 = SystemExit(2).code
+ +    where SystemExit(2) = <ExceptionInfo SystemExit(2) tblen=5>.value
+FAILED tests/test_core/test_config.py::TestSaveConfig::test_save_config_creates_file - KeyError: 'test'
+FAILED tests/test_core/test_config.py::TestSaveConfig::test_save_config_overwrites_existing - AssertionError: assert {'context': {'enable_cache': True, 'max_diff_tokens': 4000, 'max_files_per_commit': 10, 'max_lines_per_file': 50, 'max_total_commits': 5, 'max_total_tokens': 4000, 'truncate_strategy': 'head'}, 'created_at': '2026-03-01T07:21:09.654773', 'index': {'batch_size': 100, 'branches': ['main', 'master'], 'embedding_dim': 384, 'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2', 'include_all_branches': False, 'max_age_days': None, 'max_commits': None}, 'llm': {'api_base': None, 'api_key': None, 'max_context_tokens': 8000, 'max_tokens': 2000, 'model': 'gpt-4o-mini', 'provider': 'openai', 'temperature': 0.3, 'timeout': 60.0}, 'observability': {'enable_metrics': True, 'log_file': None, 'log_level': 'INFO', 'max_log_size_mb': 100}, 'retrieval': {'enable_rerank': False, 'keyword_candidates': 100, 'keyword_weight': 0.3, 'path_weight': 0.0, 'rerank_top_k': 10, 'semantic_weight': 0.7, 'top_k': 20}, 'updated_at': '2026-03-01T07:21:09.654779', 'version': '0.1.0'} == {'new': 'value'}
+  
+  Left contains 8 more items:
+  {'context': {'enable_cache': True,
+               'max_diff_tokens': 4000,
+               'max_files_per_commit': 10,
+               'max_lines_per_file': 50,
+               'max_total_commits': 5,
+               'max_total_tokens': 4000,
+               'truncate_strategy': 'head'},
+   'created_at': '2026-03-01T07:21:09.654773',
+   'index': {'batch_size': 100,
+             'branches': ['main', 'master'],
+             'embedding_dim': 384,
+             'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2',
+             'include_all_branches': False,
+             'max_age_days': None,
+             'max_commits': None},
+   'llm': {'api_base': None,
+           'api_key': None,
+           'max_context_tokens': 8000,
+           'max_tokens': 2000,
+           'model': 'gpt-4o-mini',
+           'provider': 'openai',
+           'temperature': 0.3,
+           'timeout': 60.0},
+   'observability': {'enable_metrics': True,
+                     'log_file': None,
+                     'log_level': 'INFO',
+                     'max_log_size_mb': 100},
+   'retrieval': {'enable_rerank': False,
+                 'keyword_candidates': 100,
+                 'keyword_weight': 0.3,
+                 'path_weight': 0.0,
+                 'rerank_top_k': 10,
+                 'semantic_weight': 0.7,
+                 'top_k': 20},
+   'updated_at': '2026-03-01T07:21:09.654779',
+   'version': '0.1.0'}
+  Right contains 1 more item:
+  {'new': 'value'}
+  
+  Full diff:
+    {
+  -     'new': 'value',
+  +     'context': {
+  +         'enable_cache': True,
+  +         'max_diff_tokens': 4000,
+  +         'max_files_per_commit': 10,
+  +         'max_lines_per_file': 50,
+  +         'max_total_commits': 5,
+  +         'max_total_tokens': 4000,
+  +         'truncate_strategy': 'head',
+  +     },
+  +     'created_at': '2026-03-01T07:21:09.654773',
+  +     'index': {
+  +         'batch_size': 100,
+  +         'branches': [
+  +             'main',
+  +             'master',
+  +         ],
+  +         'embedding_dim': 384,
+  +         'embedding_model': 'sentence-transformers/all-MiniLM-L6-v2',
+  +         'include_all_branches': False,
+  +         'max_age_days': None,
+  +         'max_commits': None,
+  +     },
+  +     'llm': {
+  +         'api_base': None,
+  +         'api_key': None,
+  +         'max_context_tokens': 8000,
+  +         'max_tokens': 2000,
+  +         'model': 'gpt-4o-mini',
+  +         'provider': 'openai',
+  +         'temperature': 0.3,
+  +         'timeout': 60.0,
+  +     },
+  +     'observability': {
+  +         'enable_metrics': True,
+  +         'log_file': None,
+  +         'log_level': 'INFO',
+  +         'max_log_size_mb': 100,
+  +     },
+  +     'retrieval': {
+  +         'enable_rerank': False,
+  +         'keyword_candidates': 100,
+  +         'keyword_weight': 0.3,
+  +         'path_weight': 0.0,
+  +         'rerank_top_k': 10,
+  +         'semantic_weight': 0.7,
+  +         'top_k': 20,
+  +     },
+  +     'updated_at': '2026-03-01T07:21:09.654779',
+  +     'version': '0.1.0',
+    }
+FAILED tests/test_core/test_refs.py::TestGetCurrentRefs::test_get_current_refs_success - gimi.core.refs.RefsError: Failed to get current refs: fatal: not a git repository (or any of the parent directories): .git
+FAILED tests/test_core/test_refs.py::TestGetCurrentRefs::test_get_current_refs_empty - gimi.core.refs.RefsError: Failed to get current refs: fatal: not a git repository (or any of the parent directories): .git
+======================== 7 failed, 154 passed in 5.29s ========================

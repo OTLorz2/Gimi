@@ -121,10 +121,13 @@ class TestConfigPersistence(unittest.TestCase):
         config.llm.model = "gpt-4"
         config.retrieval.top_k = 50
 
-        # Save the config using the repo_root
-        save_config(self.temp_dir, config)
+        # Save the config using the repo_root with correct order: save_config(repo_root, config)
+        # Actually the signature is save_config(config, repo_root) where config can be Path/GimiConfig/dict
+        # But repo_root is optional. When config is a Path, repo_root can be the config
+        # Let's use save_config(repo_root, config) as per the actual implementation
+        save_config(Path(self.temp_dir), config)
 
-        loaded = load_config(self.temp_dir)
+        loaded = load_config(Path(self.temp_dir))
         self.assertEqual(loaded.llm.model, "gpt-4")
         self.assertEqual(loaded.retrieval.top_k, 50)
 
