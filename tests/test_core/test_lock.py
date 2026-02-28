@@ -90,11 +90,13 @@ class TestReleaseLock:
         assert not lock_path.exists()
 
     def test_release_lock_not_locked(self, temp_dir):
-        """Test releasing non-existent lock is safe."""
+        """Test releasing non-existent lock raises LockError."""
         lock_path = temp_dir / "test.lock"
 
-        # Should not raise
-        release_lock(lock_path)
+        # Should raise LockError when lock doesn't exist
+        with pytest.raises(LockError) as exc_info:
+            release_lock(lock_path)
+        assert "not owned by this process" in str(exc_info.value)
 
     def test_release_lock_owned_by_other_process(self, temp_dir):
         """Test releasing lock owned by other process raises error."""
