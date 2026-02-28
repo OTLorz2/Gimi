@@ -130,8 +130,8 @@ class TestConfigPersistence(unittest.TestCase):
 
     def test_get_config_path(self):
         """Test getting config file path."""
-        path = get_config_path(self.temp_dir)
-        self.assertEqual(path, self.temp_dir / ".gimi" / "config.json")
+        path = get_config_path(Path(self.temp_dir))
+        self.assertEqual(path, Path(self.temp_dir) / ".gimi" / "config.json")
 
 
 if __name__ == "__main__":
