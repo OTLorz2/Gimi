@@ -1,350 +1,404 @@
-"""CLI entry point and argument parsing for Gimi."""
+"""CLI entry point for Gimi - the auxiliary programming agent.
+
+This module provides the main entry point for the Gimi CLI tool.
+It handles argument parsing, repository discovery, and orchestrates
+the full flow from user query to LLM-generated suggestions.
+"""
 
 import argparse
 import sys
-from pathlib import Path
-from typing import List, Optional
+import os
+from typing import Optional, List, Dict, Any
 
-from gimi.core.repo import find_repo_root, ensure_gimi_structure, RepoError
-from gimi.core.lock import LockError
-from gimi.core.config import init_config, ConfigError
-from gimi.core.refs import check_index_validity
-
-
-class CLIError(Exception):
-    """Raised for CLI-related errors."""
-    pass
+from gimi.core.repo import find_repo_root, get_gimi_dir, ensure_gimi_structure
+from gimi.core.lock import acquire_lock, release_lock
+from gimi.core.config import load_config, Config
+from gimi.core.refs import load_refs_snapshot, save_refs_snapshot, get_current_refs, are_refs_consistent
+from gimi.index.git import traverse_commits, get_commit_metadata
+from gimi.index.writer import IndexWriter
+from gimi.index.vector import VectorIndex
+from gimi.index.checkpoint import CheckpointManager
+from gimi.retrieval.keywords import KeywordSearcher
+from gimi.retrieval.semantic import SemanticSearcher
+from gimi.retrieval.fusion import FusionRanker
+from gimi.retrieval.rerank import Reranker
+from gimi.context.diff import DiffFetcher
+from gimi.context.prompt import PromptBuilder
+from gimi.llm.client import LLMClient
+from gimi.llm.output import OutputFormatter
+from gimi.observability.logging import RequestLogger
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Create and configure the argument parser."""
+    """Create the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
-        prog="gimi",
-        description="Gimi - An auxiliary programming agent for git repositories.",
-        epilog="Example: gimi 'How do I fix this bug?' --file src/main.py --branch main"
-    )
-
-    # Positional argument for user query/requirement
-    parser.add_argument(
-        "query",
-        nargs="?",
-        help="Your question or requirement (e.g., 'How to implement X?')"
-    )
-
-    # Optional arguments
-    parser.add_argument(
-        "--file", "-f",
-        action="append",
-        dest="files",
-        help="Specify file(s) to focus on (can be used multiple times)"
+        prog='gimi',
+        description='Gimi - An auxiliary programming agent that analyzes git history to provide code suggestions.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  gimi "How do I implement error handling in this module?"
+  gimi "Explain the authentication flow" --file src/auth.py
+  gimi "What changed in the API recently?" --branch main
+        '''
     )
 
     parser.add_argument(
-        "--branch", "-b",
-        help="Specify branch to search (default: current branch)"
+        'query',
+        type=str,
+        help='Your question or request for code suggestions'
     )
 
     parser.add_argument(
-        "--rebuild-index",
-        action="store_true",
-        help="Force rebuild of the commit index"
+        '--file', '-f',
+        type=str,
+        dest='file_path',
+        help='Specific file to focus the analysis on'
     )
 
     parser.add_argument(
-        "--config",
-        help="Path to custom config file"
+        '--branch', '-b',
+        type=str,
+        dest='branch',
+        help='Specific branch to analyze (default: current branch)'
     )
 
     parser.add_argument(
-        "--version", "-v",
-        action="version",
-        version="%(prog)s 0.1.0"
+        '--rebuild-index',
+        action='store_true',
+        help='Force rebuild of the commit index'
+    )
+
+    parser.add_argument(
+        '--top-k',
+        type=int,
+        default=None,
+        help='Number of top commits to retrieve (overrides config)'
+    )
+
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Enable verbose output'
     )
 
     return parser
 
 
-def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
-    """
-    Parse command line arguments.
-
-    Args:
-        args: Command line arguments (defaults to sys.argv[1:])
+def validate_environment() -> str:
+    """Validate that we're in a git repository.
 
     Returns:
-        Parsed arguments namespace
-    """
-    parser = create_parser()
-    return parser.parse_args(args)
-
-
-def validate_args(parsed: argparse.Namespace) -> None:
-    """
-    Validate parsed arguments.
-
-    Args:
-        parsed: Parsed arguments namespace
+        str: The repository root path
 
     Raises:
-        CLIError: If validation fails
-    """
-    # Currently query is optional to allow for commands like --version
-    # In future iterations, query may become required for the main flow
-    pass
-
-
-def main(args: Optional[List[str]] = None) -> int:
-    """
-    Main entry point for the CLI.
-
-    Args:
-        args: Command line arguments
-
-    Returns:
-        Exit code (0 for success, non-zero for errors)
+        SystemExit: If not in a git repository
     """
     try:
-        # Parse arguments
-        parsed = parse_args(args)
-        validate_args(parsed)
-
-        # Find repository root
         repo_root = find_repo_root()
+        if not repo_root:
+            print("Error: Not a git repository. Please run gimi inside a git repository.", file=sys.stderr)
+            sys.exit(1)
+        return repo_root
+    except Exception as e:
+        print(f"Error finding repository root: {e}", file=sys.stderr)
+        sys.exit(1)
 
-        # Ensure .gimi directory structure exists
-        gimi_dir = ensure_gimi_structure(repo_root)
 
-        # T4: Load or initialize configuration
-        config = init_config(gimi_dir)
+def build_index_if_needed(
+    repo_root: str,
+    gimi_dir: str,
+    config: Config,
+    force_rebuild: bool = False,
+    verbose: bool = False
+) -> bool:
+    """Build or update the commit index if needed.
 
-        # T5: Check index validity
-        is_valid, current_refs, saved_refs = check_index_validity(gimi_dir, repo_root)
+    Args:
+        repo_root: Path to the repository root
+        gimi_dir: Path to the .gimi directory
+        config: Loaded configuration
+        force_rebuild: Whether to force a full rebuild
+        verbose: Whether to print verbose output
 
-        # Determine if we need to rebuild index
-        needs_rebuild = parsed.rebuild_index or not is_valid
+    Returns:
+        bool: True if index is ready, False otherwise
+    """
+    index_dir = os.path.join(gimi_dir, 'index')
+    vectors_dir = os.path.join(gimi_dir, 'vectors')
 
-        # Build or update index if needed
-        if needs_rebuild:
-            from gimi.index.builder import IndexBuilder
-            from gimi.core.lock import GimiLock
+    # Check if we need to build the index
+    index_exists = os.path.exists(index_dir) and os.listdir(index_dir)
 
-            with GimiLock(gimi_dir) as lock:
-                builder = IndexBuilder(repo_root, gimi_dir, config.index)
+    if index_exists and not force_rebuild:
+        # Check if index is still valid
+        snapshot = load_refs_snapshot(gimi_dir)
+        if snapshot:
+            current_refs = get_current_refs(repo_root)
+            if are_refs_consistent(snapshot, current_refs):
+                if verbose:
+                    print("Using existing index (refs match)")
+                return True
+            else:
+                if verbose:
+                    print("Index is outdated (refs changed), rebuilding...")
+        else:
+            if verbose:
+                print("No refs snapshot found, rebuilding...")
 
-                def progress(msg, current, total):
-                    pct = (current / total * 100) if total > 0 else 0
-                    print(f"  {msg}: {current}/{total} ({pct:.1f}%)")
+    # Build the index
+    if verbose:
+        print("Building commit index...")
 
-                builder.set_progress_callback(progress)
-                builder.build(incremental=True)
+    try:
+        # Initialize checkpoint manager
+        checkpoint_mgr = CheckpointManager(gimi_dir)
 
-            # Re-check validity after build
-            is_valid, _, _ = check_index_validity(gimi_dir, repo_root)
-            print(f"\nIndex built successfully. Valid: {is_valid}")
+        # Get branches to index
+        branches = config.get('index_branches', ['HEAD'])
 
-        # Skip full flow if no query provided
-        if not parsed.query:
-            print("\nNo query provided. Use --help for usage information.")
-            return 0
+        # Create index writer
+        index_writer = IndexWriter(index_dir)
 
-        # Initialize logger
-        from gimi.core.logging import GimiLogger
-        logger = GimiLogger(gimi_dir / "logs")
+        # Create vector index (if embedding is available)
+        vector_index = None
+        try:
+            vector_index = VectorIndex(vectors_dir)
+        except Exception as e:
+            if verbose:
+                print(f"Warning: Could not initialize vector index: {e}")
 
-        # Log the start of the request
-        logger.log_info(f"Processing query: {parsed.query}")
+        # Traverse commits and build index
+        total_commits = 0
+        for branch in branches:
+            if verbose:
+                print(f"  Indexing branch: {branch}")
 
-        # Initialize embedding provider and retrieval engine
-        from gimi.index.embeddings import get_embedding_provider
-        from gimi.index.lightweight import LightweightIndex
-        from gimi.index.vector_index import VectorIndex
-        from gimi.retrieval.engine import RetrievalEngine
+            for commit_data in traverse_commits(repo_root, branch, limit=config.get('max_commits')):
+                # Write to lightweight index
+                index_writer.write_commit(commit_data)
 
-        embedding_provider = get_embedding_provider(config.index)
-        lightweight_index = LightweightIndex(gimi_dir / "index")
-        vector_index = VectorIndex(gimi_dir / "vectors")
+                # Write to vector index if available
+                if vector_index:
+                    vector_index.add_commit(commit_data)
 
-        retrieval_engine = RetrievalEngine(
-            lightweight_index=lightweight_index,
-            vector_index=vector_index,
-            embedding_provider=embedding_provider,
-            config=config.retrieval
-        )
+                total_commits += 1
 
-        # T10-T12: Retrieve relevant commits
-        print(f"\nSearching for relevant commits...")
-        results = retrieval_engine.search(
-            query=parsed.query,
-            file_paths=parsed.files,
-            progress_callback=lambda msg, curr, total: print(f"  {msg}: {curr}/{total}")
-        )
+                # Checkpoint periodically
+                if total_commits % 100 == 0:
+                    checkpoint_mgr.save_checkpoint(branch, commit_data['hash'])
 
-        if not results:
-            print("\nNo relevant commits found.")
-            logger.log_request(
-                repo_root=str(repo_root),
-                query=parsed.query,
-                index_valid=is_valid,
-                index_rebuilt=needs_rebuild,
-                candidate_count=0,
-                top_k_count=0,
-                context_tokens=0,
-                llm_model=config.llm.model,
-                llm_latency_ms=0.0,
-                response_status="no_results",
-                files_specified=parsed.files,
-                branch_specified=parsed.branch
-            )
-            return 0
+        # Finalize indexes
+        index_writer.close()
+        if vector_index:
+            vector_index.close()
 
-        print(f"\nFound {len(results)} relevant commits.")
+        # Update refs snapshot
+        current_refs = get_current_refs(repo_root)
+        save_refs_snapshot(gimi_dir, current_refs)
 
-        # T13: Get diffs for top commits
-        from gimi.context.diff_manager import DiffManager, TruncationConfig
+        if verbose:
+            print(f"Index built successfully with {total_commits} commits")
 
-        truncation_config = TruncationConfig(
-            max_files_per_commit=config.context.max_files_per_commit,
-            max_lines_per_file=config.context.max_lines_per_file,
-            max_total_lines=config.context.max_total_tokens // 10  # Rough estimate
-        )
+        return True
 
-        diff_manager = DiffManager(
+    except Exception as e:
+        print(f"Error building index: {e}", file=sys.stderr)
+        return False
+
+
+def main() -> int:
+    """Main entry point for the CLI.
+
+    Returns:
+        int: Exit code (0 for success, non-zero for errors)
+    """
+    # Parse arguments
+    parser = create_parser()
+    args = parser.parse_args()
+
+    # Validate environment
+    repo_root = validate_environment()
+
+    # Get .gimi directory
+    gimi_dir = get_gimi_dir(repo_root)
+
+    # Ensure .gimi structure exists
+    ensure_gimi_structure(repo_root)
+
+    # Load configuration
+    config = load_config(gimi_dir)
+
+    # Override config with CLI args
+    if args.top_k:
+        config.set('top_k', args.top_k)
+
+    # Acquire lock for write operations
+    lock_file = os.path.join(gimi_dir, '.lock')
+    if not acquire_lock(lock_file):
+        print("Error: Could not acquire lock. Another gimi process may be running.", file=sys.stderr)
+        return 1
+
+    try:
+        # Initialize request logger
+        logger = RequestLogger(gimi_dir)
+        request_id = logger.start_request(
             repo_root=repo_root,
-            cache_dir=gimi_dir / "cache",
-            config=truncation_config
+            query=args.query,
+            file_path=args.file_path,
+            branch=args.branch
         )
 
-        print("\nFetching commit diffs...")
-        diff_results = []
-        for i, result in enumerate(results[:config.retrieval.top_k], 1):
-            commit = result.commit
-            print(f"  [{i}/{min(config.retrieval.top_k, len(results))}] {commit.hash[:7]}: {commit.message[:50]}...")
-            diff_result = diff_manager.get_diff(
-                commit_hash=commit.hash,
-                commit_message=commit.message,
-                author=commit.author,
-                author_date=commit.author_date
-            )
-            diff_results.append(diff_result)
+        # Build index if needed
+        if not build_index_if_needed(
+            repo_root=repo_root,
+            gimi_dir=gimi_dir,
+            config=config,
+            force_rebuild=args.rebuild_index,
+            verbose=args.verbose
+        ):
+            print("Error: Failed to build or update index.", file=sys.stderr)
+            return 1
 
-        # T14-T15: Build prompt and call LLM
-        from gimi.llm.prompt_builder import PromptBuilder
-        from gimi.llm.client import OpenAIClient, AnthropicClient, LLMError
+        # Initialize retrieval components
+        index_dir = os.path.join(gimi_dir, 'index')
+        vectors_dir = os.path.join(gimi_dir, 'vectors')
 
-        print(f"\nGenerating response using {config.llm.provider} ({config.llm.model})...")
+        keyword_searcher = KeywordSearcher(index_dir)
+        semantic_searcher = SemanticSearcher(vectors_dir)
+        fusion_ranker = FusionRanker()
+        reranker = Reranker() if config.get('use_reranker', False) else None
 
-        prompt_builder = PromptBuilder(max_context_tokens=config.context.max_total_tokens)
-        prompt_result = prompt_builder.build_prompt(
-            query=parsed.query,
-            diff_results=diff_results
+        # Stage 1: Keyword and path retrieval
+        if args.verbose:
+            print("Searching for relevant commits...")
+
+        candidates = keyword_searcher.search(
+            query=args.query,
+            file_path=args.file_path,
+            branch=args.branch,
+            limit=config.get('candidate_limit', 100)
         )
 
-        # Initialize LLM client based on provider
-        llm_client = None
-        if config.llm.provider == "openai":
-            llm_client = OpenAIClient(
-                api_key=config.llm.api_key,
-                model=config.llm.model,
-                api_base=config.llm.api_base,
-                timeout=config.llm.timeout
+        if args.verbose:
+            print(f"  Found {len(candidates)} candidates via keyword search")
+
+        # Stage 2: Semantic retrieval and fusion
+        if semantic_searcher.is_available():
+            semantic_results = semantic_searcher.search(
+                query=args.query,
+                candidate_hashes=[c['hash'] for c in candidates],
+                limit=config.get('top_k', 25)
             )
-        elif config.llm.provider == "anthropic":
-            llm_client = AnthropicClient(
-                api_key=config.llm.api_key,
-                model=config.llm.model,
-                api_base=config.llm.api_base,
-                timeout=config.llm.timeout
+
+            top_commits = fusion_ranker.fuse(
+                keyword_results=candidates,
+                semantic_results=semantic_results,
+                top_k=config.get('top_k', 25)
             )
         else:
-            raise CLIError(f"Unsupported LLM provider: {config.llm.provider}")
+            top_commits = candidates[:config.get('top_k', 25)]
 
-        # Call LLM
-        import time
-        start_time = time.time()
-        try:
-            llm_response = llm_client.complete(
-                messages=prompt_result.to_messages(),
-                temperature=config.llm.temperature,
-                max_tokens=config.llm.max_tokens
+        if args.verbose:
+            print(f"  Selected top {len(top_commits)} commits after fusion")
+
+        # Stage 3: Optional reranking
+        if reranker and reranker.is_available():
+            if args.verbose:
+                print("Reranking commits...")
+            top_commits = reranker.rerank(
+                query=args.query,
+                commits=top_commits,
+                top_k=config.get('final_top_k', 10)
             )
-            llm_latency_ms = (time.time() - start_time) * 1000
+            if args.verbose:
+                print(f"  Final selection: {len(top_commits)} commits")
 
-            # T16: Log the request
-            logger.log_request(
-                repo_root=str(repo_root),
-                query=parsed.query,
-                index_valid=is_valid,
-                index_rebuilt=needs_rebuild,
-                candidate_count=retrieval_engine.get_stats().candidate_count if retrieval_engine.get_stats() else 0,
-                top_k_count=len(results),
-                context_tokens=prompt_result.context_tokens,
-                llm_model=config.llm.model,
-                llm_latency_ms=llm_latency_ms,
-                response_status="success",
-                files_specified=parsed.files,
-                branch_specified=parsed.branch,
-                referenced_commits=prompt_result.referenced_commits
+        # Fetch diffs for top commits
+        if args.verbose:
+            print("Fetching diffs...")
+
+        diff_fetcher = DiffFetcher(repo_root, cache_dir=os.path.join(gimi_dir, 'cache'))
+        diffs = []
+
+        for commit in top_commits:
+            diff_data = diff_fetcher.fetch(
+                commit_hash=commit['hash'],
+                max_files=config.get('max_files_per_commit', 10),
+                max_lines_per_file=config.get('max_lines_per_file', 100)
             )
+            diffs.append({
+                'commit': commit,
+                'diff': diff_data
+            })
 
-            # T17: Output results
-            print("\n" + "="*80)
-            print("GIMI RESPONSE")
-            print("="*80)
-            print(llm_response.content)
-            print("="*80)
+        if args.verbose:
+            print(f"  Fetched diffs for {len(diffs)} commits")
 
-            # Show referenced commits
-            if prompt_result.referenced_commits:
-                print("\nReferenced Commits:")
-                for i, commit_hash in enumerate(prompt_result.referenced_commits[:10], 1):
-                    # Find the commit in results to get the message
-                    for result in results:
-                        if result.commit.hash == commit_hash:
-                            print(f"  {i}. {commit_hash[:7]}: {result.commit.message[:60]}...")
-                            break
+        # Build prompt and call LLM
+        if args.verbose:
+            print("Generating suggestions...")
 
-            return 0
+        prompt_builder = PromptBuilder()
+        prompt = prompt_builder.build(
+            query=args.query,
+            diffs=diffs,
+            file_path=args.file_path
+        )
 
-        except LLMError as e:
-            llm_latency_ms = (time.time() - start_time) * 1000
-            logger.log_request(
-                repo_root=str(repo_root),
-                query=parsed.query,
-                index_valid=is_valid,
-                index_rebuilt=needs_rebuild,
-                candidate_count=0,
-                top_k_count=0,
-                context_tokens=0,
-                llm_model=config.llm.model,
-                llm_latency_ms=llm_latency_ms,
-                response_status="llm_error",
-                error_message=str(e),
-                files_specified=parsed.files,
-                branch_specified=parsed.branch
-            )
-            raise CLIError(f"LLM error: {e}")
+        llm_client = LLMClient(config)
+        response = llm_client.generate(prompt)
+
+        # Format and output results
+        output_formatter = OutputFormatter()
+        formatted_output = output_formatter.format(
+            response=response,
+            referenced_commits=[d['commit'] for d in diffs]
+        )
+
+        print(formatted_output)
+
+        # Log the request
+        logger.end_request(
+            request_id=request_id,
+            success=True,
+            candidate_count=len(candidates),
+            top_k=len(top_commits),
+            diff_count=len(diffs),
+            llm_duration=response.get('duration', 0)
+        )
 
         return 0
 
-    except CLIError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-    except RepoError as e:
-        print(f"Repository Error: {e}", file=sys.stderr)
-        return 1
-    except LockError as e:
-        print(f"Lock Error: {e}", file=sys.stderr)
-        return 1
-    except ConfigError as e:
-        print(f"Configuration Error: {e}", file=sys.stderr)
-        return 1
     except KeyboardInterrupt:
-        print("\nInterrupted.", file=sys.stderr)
+        print("\nOperation cancelled by user.", file=sys.stderr)
         return 130
     except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+
+        # Log the error
+        try:
+            if 'logger' in locals() and 'request_id' in locals():
+                logger.end_request(
+                    request_id=request_id,
+                    success=False,
+                    error=str(e)
+                )
+        except:
+            pass
+
         return 1
+    finally:
+        # Release lock
+        try:
+            if 'lock_file' in locals():
+                release_lock(lock_file)
+        except:
+            pass
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sys.exit(main())
