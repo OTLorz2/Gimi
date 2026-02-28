@@ -117,6 +117,7 @@ class TestConfigPersistence(unittest.TestCase):
 
     def test_save_and_load_config(self):
         """Test saving and loading configuration."""
+        import shutil
         config = GimiConfig()
         config.llm.model = "gpt-4"
         config.retrieval.top_k = 50

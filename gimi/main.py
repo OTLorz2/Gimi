@@ -27,7 +27,7 @@ from gimi.llm import (
     LLMClient, PromptBuilder, SuggestionPresenter,
     LLMResponse, SuggestionOutput,
 )
-from gimi.observability import ObservabilityLogger, RequestLog
+from gimi.observability import RequestLogger, RequestLogEntry
 from gimi.error_handler import (
     ErrorHandler, GimiError, ErrorCode, safe_execute,
 )
@@ -43,7 +43,7 @@ class GimiApplication:
     def __init__(self):
         self.cli = GimiCli()
         self.error_handler = ErrorHandler(verbose=False)
-        self.logger: Optional[ObservabilityLogger] = None
+        self.logger: Optional[RequestLogger] = None
 
         # 运行时状态
         self.args: Optional[CliArgs] = None
@@ -77,7 +77,7 @@ class GimiApplication:
         self.gimi_path = self.args.gimi_path
 
         # 3. 初始化日志记录器
-        self.logger = ObservabilityLogger(self.gimi_path)
+        self.logger = RequestLogger(self.gimi_path)
         request_id = self.logger.start_request(
             repo_root=str(self.repo_root),
             query=self.args.query,
