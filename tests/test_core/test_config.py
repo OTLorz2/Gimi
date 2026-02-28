@@ -72,10 +72,11 @@ class TestSaveConfig:
     def test_save_config_creates_file(self, temp_dir):
         """Test saving config creates the file."""
         config = {"test": "value"}
-        config_path = temp_dir / "config.json"
 
-        save_config(config_path, config)
+        # save_config saves to .gimi/config.json within the repo_root
+        save_config(config, temp_dir)
 
+        config_path = temp_dir / ".gimi" / "config.json"
         assert config_path.exists()
         saved = json.loads(config_path.read_text())
         assert saved["test"] == "value"
