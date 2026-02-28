@@ -106,18 +106,17 @@ class FileLock:
         Raises:
             LockError: If lock is not owned by this process.
         """
+        # If lock file doesn't exist, nothing to release
+        if not self.lock_path.exists():
+            self._owned = False
+            return
+
         if not self._owned:
             # Check if we own the lock
             if not self._is_owned_by_us():
-                # Check if lock exists to determine error message
-                if self.lock_path.exists():
-                    raise LockError(
-                        "Cannot release lock: owned by another process"
-                    )
-                else:
-                    raise LockError(
-                        "Cannot release lock: not owned by this process"
-                    )
+                raise LockError(
+                    "Cannot release lock: owned by another process"
+                )
 
         try:
             if self.lock_path.exists():
