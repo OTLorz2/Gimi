@@ -3,6 +3,7 @@
 import pytest
 import sys
 from unittest.mock import patch, MagicMock
+from pathlib import Path
 
 from gimi.core.cli import create_parser, main, validate_environment
 
@@ -116,12 +117,3 @@ class TestMain:
                 main()
 
         assert exc_info.value.code == 1
-
-
-def cli_entry_point():
-    """Entry point for the console script."""
-    sys.exit(main())
-
-
-if __name__ == '__main__':
-    main()
