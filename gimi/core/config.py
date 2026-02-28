@@ -215,6 +215,9 @@ def get_config_path(repo_root: Path) -> Path:
     Returns:
         Path to the config file.
     """
+    # Handle case where repo_root might already be a .gimi directory
+    if repo_root.name == ".gimi":
+        return repo_root / "config.json"
     return repo_root / ".gimi" / "config.json"
 
 
