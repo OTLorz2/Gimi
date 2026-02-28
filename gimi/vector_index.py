@@ -168,10 +168,10 @@ class VectorIndex:
         parts = [commit.message]
 
         # 添加文件路径信息
-        if commit.files_changed:
+        if commit.changed_files:
             # 提取文件名和路径关键词
             file_parts = []
-            for f in commit.files_changed[:20]:  # 限制数量
+            for f in commit.changed_files[:20]:  # 限制数量
                 # 提取文件名和扩展名
                 path_parts = f.replace("/", " ").replace("\\", " ").split()
                 file_parts.extend(path_parts)
