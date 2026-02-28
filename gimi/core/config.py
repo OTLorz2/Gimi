@@ -9,13 +9,161 @@ This module handles:
 """
 import json
 import os
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, List
 
 
 class ConfigError(Exception):
     """Error related to configuration operations."""
     pass
+
+
+@dataclass
+class LLMConfig:
+    """LLM configuration."""
+    provider: str = "anthropic"
+    model: str = "claude-opus-4-6"
+    api_key: Optional[str] = None
+    api_base: Optional[str] = None
+    temperature: float = 0.1
+    max_tokens: int = 4096
+    timeout: int = 120
+    max_context_tokens: int = 8000
+
+
+@dataclass
+class RetrievalConfig:
+    """Retrieval configuration."""
+    top_k: int = 10
+    candidate_pool_size: int = 50
+    enable_two_stage_rerank: bool = False
+    keyword_weight: float = 0.3
+    semantic_weight: float = 0.7
+    path_weight: float = 0.0
+    rerank_top_n: int = 10
+
+
+@dataclass
+class ContextConfig:
+    """Context configuration."""
+    max_files_per_commit: int = 10
+    max_lines_per_file: int = 100
+    max_total_commits: int = 5
+    truncate_strategy: str = "head"
+    max_diff_tokens: int = 4000
+    max_total_tokens: int = 8000
+
+
+@dataclass
+class IndexConfig:
+    """Index configuration."""
+    max_commits: int = 1000
+    branches: List[str] = field(default_factory=lambda: ["main", "master"])
+    batch_size: int = 100
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    embedding_provider: str = "mock"
+    embedding_cache_dir: Optional[str] = None
+
+
+@dataclass
+class ObservabilityConfig:
+    """Observability configuration."""
+    log_level: str = "INFO"
+    enable_metrics: bool = True
+    log_file: Optional[str] = None
+    max_log_size_mb: int = 100
+
+
+@dataclass
+class GimiConfig:
+    """Gimi complete configuration."""
+    version: str = "0.1.0"
+    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    llm: LLMConfig = field(default_factory=LLMConfig)
+    retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
+    index: IndexConfig = field(default_factory=IndexConfig)
+    observability: ObservabilityConfig = field(default_factory=ObservabilityConfig)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary (excluding sensitive info)."""
+        data = asdict(self)
+        # Ensure API key is not serialized
+        if "llm" in data and "api_key" in data["llm"]:
+            data["llm"]["api_key"] = None
+        return data
+
+    def save(self, config_path: Path) -> None:
+        """Save configuration to file."""
+        self.updated_at = datetime.now().isoformat()
+        config_path.write_text(
+            json.dumps(self.to_dict(), indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
+
+    @classmethod
+    def load(cls, config_path: Path) -> "GimiConfig":
+        """Load configuration from file."""
+        if not config_path.exists():
+            return cls()
+
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        return cls._from_dict(data)
+
+    @classmethod
+    def _from_dict(cls, data: Dict[str, Any]) -> "GimiConfig":
+        """Create configuration from dictionary."""
+        config = cls(
+            version=data.get("version", "0.1.0"),
+            created_at=data.get("created_at", datetime.now().isoformat()),
+            updated_at=data.get("updated_at", datetime.now().isoformat()),
+        )
+
+        if "llm" in data:
+            config.llm = LLMConfig(**data["llm"])
+        if "retrieval" in data:
+            config.retrieval = RetrievalConfig(**data["retrieval"])
+        if "context" in data:
+            config.context = ContextConfig(**data["context"])
+        if "index" in data:
+            config.index = IndexConfig(**data["index"])
+        if "observability" in data:
+            config.observability = ObservabilityConfig(**data["observability"])
+
+        return config
+
+    def get(self, key_path: str, default: Any = None) -> Any:
+        """Get configuration value by key path.
+
+        Supports nested keys using dot notation (e.g., "llm.model").
+        """
+        keys = key_path.split('.')
+        value = self
+
+        for key in keys:
+            if hasattr(value, key):
+                value = getattr(value, key)
+            else:
+                return default
+
+        return value
+
+    def set(self, key_path: str, value: Any) -> None:
+        """Set configuration value by key path."""
+        keys = key_path.split('.')
+        target = self
+
+        for key in keys[:-1]:
+            if not hasattr(target, key):
+                setattr(target, key, {})
+            target = getattr(target, key)
+
+        setattr(target, keys[-1], value)
 
 
 # Default configuration values
