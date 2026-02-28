@@ -175,3 +175,19 @@ def are_refs_consistent(old_refs: Dict[str, str], new_refs: Dict[str, str]) -> b
     """
     result = compare_refs(old_refs, new_refs)
     return not result["changed"]
+
+
+def capture_refs_snapshot(repo_root: Path) -> Dict[str, str]:
+    """
+    Capture the current refs snapshot from the git repository.
+
+    This is an alias for get_current_refs() to provide a more descriptive
+    name for the operation of capturing a snapshot.
+
+    Args:
+        repo_root: Path to the repository root.
+
+    Returns:
+        Dictionary mapping branch names to commit hashes.
+    """
+    return get_current_refs(repo_root)
