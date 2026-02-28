@@ -83,11 +83,13 @@ class TestSaveConfig:
 
     def test_save_config_overwrites_existing(self, temp_dir):
         """Test saving config overwrites existing file."""
-        config_path = temp_dir / "config.json"
+        gimi_dir = temp_dir / ".gimi"
+        gimi_dir.mkdir(parents=True, exist_ok=True)
+        config_path = gimi_dir / "config.json"
         config_path.write_text(json.dumps({"old": "value"}))
 
         new_config = {"new": "value"}
-        save_config(config_path, new_config)
+        save_config(new_config, temp_dir)
 
         saved = json.loads(config_path.read_text())
         assert saved == {"new": "value"}
@@ -95,10 +97,11 @@ class TestSaveConfig:
     def test_save_config_creates_parent_dirs(self, temp_dir):
         """Test saving config creates parent directories."""
         config = {"test": "value"}
-        config_path = temp_dir / "subdir" / "config.json"
 
-        save_config(config_path, config)
+        # save_config creates .gimi directory within repo_root
+        save_config(config, temp_dir)
 
+        config_path = temp_dir / ".gimi" / "config.json"
         assert config_path.exists()
 
 
