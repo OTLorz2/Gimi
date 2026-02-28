@@ -22,6 +22,10 @@ class SearchResult:
     source: str  # 'keyword', 'semantic', 'fusion'
 
 
+# Alias for backward compatibility
+RetrievalResult = SearchResult
+
+
 class RetrievalEngine:
     """Engine that combines multiple retrieval strategies."""
 
