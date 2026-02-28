@@ -288,10 +288,16 @@ def save_config(config: Union[Dict[str, Any], "GimiConfig", Path], repo_root: Op
         config_obj = GimiConfig()
         config_dict = config_obj.to_dict()
     elif isinstance(config, Path) and repo_root is not None:
-        # Called as save_config(config_path, repo_root) - deprecated
+        # Called as save_config(config_path, config_dict) or save_config(config_path, repo_root)
         config_path = config
-        config_obj = GimiConfig()
-        config_dict = config_obj.to_dict()
+        # If repo_root is a dict, use it as the config; otherwise create default config
+        if isinstance(repo_root, dict):
+            config_dict = repo_root
+        elif hasattr(repo_root, 'to_dict'):
+            config_dict = repo_root.to_dict()
+        else:
+            config_obj = GimiConfig()
+            config_dict = config_obj.to_dict()
     elif repo_root is None:
         raise ConfigError("repo_root is required when config is not a Path")
     else:
