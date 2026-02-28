@@ -9,13 +9,13 @@ telemetry collection.
 from gimi.observability.logging import (
     RequestLogger,
     IndexBuildLogger,
-    RequestLog,
-    IndexBuildLog,
+    RequestLogEntry,
+    IndexBuildLogEntry,
 )
 
 __all__ = [
     "RequestLogger",
     "IndexBuildLogger",
-    "RequestLog",
-    "IndexBuildLog",
+    "RequestLogEntry",
+    "IndexBuildLogEntry",
 ]
