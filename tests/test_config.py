@@ -98,7 +98,7 @@ class TestGimiConfig(unittest.TestCase):
             "retrieval": {"top_k": 50},
             "llm": {"model": "gpt-4"}
         }
-        config = GimiConfig.from_dict(data)
+        config = GimiConfig._from_dict(data)
         self.assertEqual(config.retrieval.top_k, 50)
         self.assertEqual(config.llm.model, "gpt-4")
 
