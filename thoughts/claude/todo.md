@@ -1,38 +1,35 @@
-# Gimi Agent Implementation Todo
+# Gimi Implementation TODO
 
-## Phase 1: Environment and Foundation - COMPLETE
-- [x] T1: Repository parsing and .gimi directory creation
-- [x] T2: Write path locking implementation
-- [x] T3: CLI entry and argument parsing
+## Current Status
 
-## Phase 2: Configuration and Metadata - COMPLETE
-- [x] T4: Configuration loading and refs snapshot
-- [x] T5: Index validity verification
+The project has implemented:
+- Phase 1 (T1-T3): Repository discovery, locking, CLI entry point
+- Phase 2 (T4-T5): Configuration management, refs snapshot/validity checking
+- Phase 3 (T6-T9): Git operations, index building, lightweight index, vector index, embeddings
+- Phase 4 (T10-T12): Retrieval engine (keyword + semantic search)
+- Phase 5 (T13-T15): Diff manager, LLM client, Prompt builder
+- Phase 6 (T16): Logging infrastructure
 
-## Phase 3: Git and Index - IN PROGRESS
-- [x] T6: Git traversal and commit metadata
-- [x] T7: Lightweight index writing
-- [ ] T8: Vector index and embedding
-- [ ] T9: Large repository strategy and checkpoint
+## Remaining Work
 
-## Phase 4: Retrieval - PENDING
-- [ ] T10: Keyword and path retrieval
-- [ ] T11: Semantic retrieval and fusion
-- [ ] T12: Optional two-stage reranking
+### 1. Integrate Full Flow in CLI
+- Connect retrieval engine to CLI
+- Connect diff manager
+- Connect LLM client and prompt builder
+- Add proper error handling and output formatting
+- Add proper logging throughout the flow
 
-## Phase 5: Context and LLM - PENDING
-- [ ] T13: Get diff and truncation
-- [ ] T14: Prompt assembly and LLM call
-- [ ] T15: Output and reference commit display
+### 2. Tests
+- Unit tests for each module
+- Integration tests for the full flow
+- Test with real git repositories
 
-## Phase 6: Finalization - PENDING
-- [ ] T16: Observations logs
-- [ ] T17: Error handling and documentation
+### 3. Documentation
+- Ensure README is accurate
+- Add inline documentation where needed
 
-## Testing - IN PROGRESS
-- [x] Unit tests for repo module
-- [ ] Unit tests for lock module
-- [ ] Unit tests for config module
-- [ ] Unit tests for git module
-- [ ] Unit tests for index module
-- [ ] End-to-end tests
+## Implementation Plan
+
+1. First, update CLI to integrate the full flow
+2. Then add comprehensive tests
+3. Finally, test end-to-end and fix any issues
