@@ -12,7 +12,9 @@ from gimi.core.config import (
     get_config_value,
     set_config_value,
     ConfigError,
-    DEFAULT_CONFIG
+    DEFAULT_CONFIG,
+    GimiConfig,
+    LLMConfig
 )
 
 
@@ -24,24 +26,26 @@ class TestLoadConfig:
         config_path = gimi_dir / "config.json"
         config_path.write_text(json.dumps(sample_config))
 
-        with patch('gimi.core.config.get_gimi_dir', return_value=gimi_dir):
-            result = load_config(mock_git_repo.parent if hasattr(mock_git_repo, 'parent') else gimi_dir.parent)
-            assert result == sample_config
+        with patch('gimi.core.repo.find_repo_root', return_value=gimi_dir.parent):
+            result = load_config(gimi_dir.parent)
+            # Result is a GimiConfig dataclass, not a dict
+            assert isinstance(result, GimiConfig)
+            assert result.llm.provider == "anthropic"
 
     def test_load_nonexistent_config_returns_defaults(self, temp_dir):
         """Test loading config when file doesn't exist returns defaults."""
-        with patch('gimi.core.repo.find_repo_root', return_value=temp_dir):
-            result = load_config(temp_dir)
-            assert result == DEFAULT_CONFIG
+        result = load_config(temp_dir)
+        assert isinstance(result, GimiConfig)
+        assert result.llm.provider == "openai"  # Default value
 
     def test_load_invalid_json_returns_defaults(self, gimi_dir):
         """Test loading invalid JSON returns defaults."""
         config_path = gimi_dir / "config.json"
         config_path.write_text("invalid json")
 
-        with patch('gimi.core.repo.find_repo_root', return_value=gimi_dir.parent):
-            result = load_config(gimi_dir.parent)
-            assert result == DEFAULT_CONFIG
+        result = load_config(gimi_dir.parent)
+        assert isinstance(result, GimiConfig)
+        assert result.llm.provider == "openai"
 
     def test_load_partial_config_merges_with_defaults(self, gimi_dir):
         """Test loading partial config merges with defaults."""
@@ -53,13 +57,12 @@ class TestLoadConfig:
         config_path = gimi_dir / "config.json"
         config_path.write_text(json.dumps(partial_config))
 
-        with patch('gimi.core.repo.find_repo_root', return_value=gimi_dir.parent):
-            result = load_config(gimi_dir.parent)
+        result = load_config(gimi_dir.parent)
 
-            # Should have custom model
-            assert result["llm"]["model"] == "custom-model"
-            # Should have default provider
-            assert result["llm"]["provider"] == DEFAULT_CONFIG["llm"]["provider"]
+        # Should have custom model
+        assert result.llm.model == "custom-model"
+        # Should have default provider
+        assert result.llm.provider == "openai"  # Default provider
 
 
 class TestSaveConfig:
@@ -68,32 +71,33 @@ class TestSaveConfig:
     def test_save_config_creates_file(self, temp_dir):
         """Test saving config creates the file."""
         config = {"test": "value"}
-        config_path = temp_dir / "config.json"
 
-        save_config(config, config_path)
+        save_config(temp_dir, config)
 
+        config_path = temp_dir / ".gimi" / "config.json"
         assert config_path.exists()
         saved = json.loads(config_path.read_text())
-        assert saved == config
+        assert saved["test"] == "value"
 
     def test_save_config_overwrites_existing(self, temp_dir):
         """Test saving config overwrites existing file."""
-        config_path = temp_dir / "config.json"
+        config_path = temp_dir / ".gimi" / "config.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(json.dumps({"old": "value"}))
 
         new_config = {"new": "value"}
-        save_config(new_config, config_path)
+        save_config(temp_dir, new_config)
 
         saved = json.loads(config_path.read_text())
-        assert saved == new_config
+        assert saved == {"new": "value"}
 
     def test_save_config_creates_parent_dirs(self, temp_dir):
         """Test saving config creates parent directories."""
-        config_path = temp_dir / "subdir" / "config.json"
         config = {"test": "value"}
 
-        save_config(config, config_path)
+        save_config(temp_dir, config)
 
+        config_path = temp_dir / ".gimi" / "config.json"
         assert config_path.exists()
 
 
