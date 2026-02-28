@@ -219,8 +219,31 @@ class GimiLock:
         return False
 
 
-# Convenience functions for simple lock operations
+# Context manager for lock
+def with_lock(gimi_dir: Union[str, Path]):
+    """
+    Context manager for acquiring a lock on the .gimi directory.
 
+    Args:
+        gimi_dir: Path to the .gimi directory.
+
+    Yields:
+        GimiLock: The acquired lock.
+
+    Example:
+        with with_lock(gimi_dir) as lock:
+            # Do something with the lock held
+            pass
+    """
+    lock = GimiLock(gimi_dir)
+    lock.acquire()
+    try:
+        yield lock
+    finally:
+        lock.release()
+
+
+# Convenience functions for simple lock operations
 def acquire_lock(
     lock_path: Union[str, Path],
     blocking: bool = True,

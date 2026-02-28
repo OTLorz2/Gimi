@@ -15,26 +15,24 @@ See `gimi --help` for more information.
 __version__ = "0.1.0"
 __author__ = "Gimi Team"
 
-from .repo import (
+# Core modules - use core package
+from .core.repo import (
     find_repo_root,
-    setup_gimi,
-    GimiPaths,
+    ensure_gimi_structure,
+    GimiRepoError,
     RepoError,
-    NotAGitRepoError,
 )
 
-from .lock import (
+from .core.lock import (
     FileLock,
-    GimiLockManager,
     LockError,
-    LockAcquisitionError,
-    LockHeldByOtherProcess,
-    acquire_all,
+    LockTimeoutError,
 )
 
-from .cli import (
-    GimiCLI,
-    main,
+from .core.config import (
+    load_config,
+    save_config,
+    GimiConfig,
 )
 
 __all__ = [
@@ -42,18 +40,15 @@ __all__ = [
     "__version__",
     # Repository
     "find_repo_root",
-    "setup_gimi",
-    "GimiPaths",
+    "ensure_gimi_structure",
+    "GimiRepoError",
     "RepoError",
-    "NotAGitRepoError",
     # Locking
     "FileLock",
-    "GimiLockManager",
     "LockError",
-    "LockAcquisitionError",
-    "LockHeldByOtherProcess",
-    "acquire_all",
-    # CLI
-    "GimiCLI",
-    "main",
+    "LockTimeoutError",
+    # Config
+    "load_config",
+    "save_config",
+    "GimiConfig",
 ]
