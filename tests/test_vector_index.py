@@ -98,16 +98,15 @@ class TestVectorIndex(unittest.TestCase):
         commit = CommitMeta(
             hash="abc123def456789012345678901234567890abcd",
             message="Test commit for authentication feature",
-            author_name="Test User",
+            author="Test User",
             author_email="test@example.com",
-            author_date=datetime.now(),
-            committer_name="Test User",
+            author_date="2026-03-01T00:00:00",
+            committer="Test User",
             committer_email="test@example.com",
-            committer_date=datetime.now(),
-            branches=["main"],
+            committer_date="2026-03-01T00:00:00",
             parents=[],
-            files_changed=["src/auth.py", "src/login.py"],
-            stats={"insertions": 100, "deletions": 10, "files_changed": 2}
+            branches=["main"],
+            changed_files=["src/auth.py", "src/login.py"]
         )
 
         index.add_commit(commit)
