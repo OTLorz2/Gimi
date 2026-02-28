@@ -1,6 +1,7 @@
 README.md
 setup.py
 gimi/__init__.py
+gimi/__main__.py
 gimi.egg-info/PKG-INFO
 gimi.egg-info/SOURCES.txt
 gimi.egg-info/dependency_links.txt
