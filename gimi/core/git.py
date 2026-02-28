@@ -225,8 +225,9 @@ def get_commit_files(repo_root: Path, commit_hash: str) -> List[str]:
         List of changed file paths
     """
     try:
+        # Try git show --name-only which works for all commits including initial commits
         result = subprocess.run(
-            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit_hash],
+            ["git", "show", "--name-only", "--format=", commit_hash],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
@@ -236,6 +237,19 @@ def get_commit_files(repo_root: Path, commit_hash: str) -> List[str]:
         files = [f.strip() for f in result.stdout.strip().split("\n") if f.strip()]
         return files
     except subprocess.CalledProcessError:
+        # Fallback to diff-tree for older git versions
+        try:
+            result = subprocess.run(
+                ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit_hash],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            files = [f.strip() for f in result.stdout.strip().split("\n") if f.strip()]
+            return files
+        except subprocess.CalledProcessError:
+            return []
         return []
 
 
