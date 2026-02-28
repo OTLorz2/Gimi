@@ -123,13 +123,35 @@ def main(args: Optional[List[str]] = None) -> int:
         # Determine if we need to rebuild index
         needs_rebuild = parsed.rebuild_index or not is_valid
 
-        # TODO: T6+ - Git traversal and commit metadata
-        # TODO: T7+ - Lightweight index writing
-        # TODO: T8+ - Vector index and embedding
+        # Build or update index if needed
+        if needs_rebuild:
+            from gimi.index.builder import IndexBuilder
+            from gimi.core.lock import GimiLock
+
+            with GimiLock(gimi_dir) as lock:
+                builder = IndexBuilder(repo_root, gimi_dir, config.index)
+
+                def progress(msg, current, total):
+                    pct = (current / total * 100) if total > 0 else 0
+                    print(f"  {msg}: {current}/{total} ({pct:.1f}%)")
+
+                builder.set_progress_callback(progress)
+                builder.build(incremental=True)
+
+            # Re-check validity after build
+            is_valid, _, _ = check_index_validity(gimi_dir, repo_root)
+            print(f"\nIndex built successfully. Valid: {is_valid}")
+
+        # TODO: T10+ - Keyword and path retrieval
+        # TODO: T11+ - Semantic retrieval and fusion
+        # TODO: T12+ - Optional two-stage reranking
+        # TODO: T13+ - Get diff and truncation
+        # TODO: T14+ - Prompt assembly and LLM call
+        # TODO: T15+ - Output and reference commit display
         # ... more tasks to come
 
-        # Placeholder output for phase 1-2 completion
-        print(f"Repository root: {repo_root}")
+        # Placeholder output for phase 1-3 completion
+        print(f"\nRepository root: {repo_root}")
         print(f"Gimi directory: {gimi_dir}")
         print(f"Query: {parsed.query or '(none)'}")
         if parsed.files:
@@ -137,7 +159,6 @@ def main(args: Optional[List[str]] = None) -> int:
         if parsed.branch:
             print(f"Branch: {parsed.branch}")
         print(f"Index valid: {is_valid}")
-        print(f"Needs rebuild: {needs_rebuild}")
 
         return 0
 
