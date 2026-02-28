@@ -190,6 +190,19 @@ class GimiLock:
         self.gimi_dir = Path(gimi_dir)
         self.lock_file = self.gimi_dir / "lock"
         self._file_lock = FileLock(self.lock_file)
+        self._owned = False
+
+    def _acquire(self, blocking: bool = True) -> bool:
+        """
+        Internal acquire method for compatibility with tests.
+
+        Args:
+            blocking: If True, block until lock is acquired.
+
+        Returns:
+            True if lock was acquired.
+        """
+        return self.acquire(blocking=blocking)
 
     def acquire(self, blocking: bool = True, timeout: Optional[float] = None) -> bool:
         """
@@ -202,11 +215,15 @@ class GimiLock:
         Returns:
             True if lock was acquired.
         """
-        return self._file_lock.acquire(blocking=blocking, timeout=timeout)
+        result = self._file_lock.acquire(blocking=blocking, timeout=timeout)
+        if result:
+            self._owned = True
+        return result
 
     def release(self) -> None:
         """Release the lock."""
         self._file_lock.release()
+        self._owned = False
 
     def __enter__(self):
         """Context manager entry."""

@@ -386,5 +386,46 @@ def main() -> int:
             pass
 
 
+# Exception classes for CLI
+class CLIError(Exception):
+    """Error raised during CLI operations."""
+    pass
+
+
+# Backward compatibility functions for tests
+def cli():
+    """Entry point for CLI (for backward compatibility with tests)."""
+    return main()
+
+
+def parse_args(args=None):
+    """
+    Parse command line arguments (for backward compatibility with tests).
+
+    Args:
+        args: List of argument strings (uses sys.argv if None)
+
+    Returns:
+        Parsed arguments namespace
+    """
+    parser = create_parser()
+    return parser.parse_args(args)
+
+
+def validate_args(args):
+    """
+    Validate parsed arguments (for backward compatibility with tests).
+
+    Args:
+        args: Parsed arguments namespace
+
+    Raises:
+        CLIError: If arguments are invalid
+    """
+    if hasattr(args, 'command') and args.command == 'ask':
+        if not hasattr(args, 'query') or not args.query:
+            raise CLIError("query is required for 'ask' command")
+
+
 if __name__ == '__main__':
     sys.exit(main())

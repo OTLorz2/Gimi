@@ -6,11 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from gimi.index.git_traverse import (
+from gimi.index.git import (
     traverse_commits,
     get_commit_metadata,
     get_changed_files,
-    GitTraverseError,
+    GitTraversalError,
     CommitMetadata
 )
 
@@ -77,7 +77,7 @@ class TestTraverseCommits:
             "commit2 hash info"
         ]
 
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.return_value = expected_commits
 
             result = list(traverse_commits(temp_dir, branch="main"))
@@ -86,7 +86,7 @@ class TestTraverseCommits:
 
     def test_traverse_with_limit(self, temp_dir):
         """Test traversing with commit limit."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.return_value = [f"commit{i}" for i in range(100)]
 
             result = list(traverse_commits(temp_dir, max_commits=10))
@@ -95,7 +95,7 @@ class TestTraverseCommits:
 
     def test_traverse_since_date(self, temp_dir):
         """Test traversing since a specific date."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.return_value = ["commit1", "commit2"]
 
             list(traverse_commits(temp_dir, since="2024-01-01"))
@@ -107,7 +107,7 @@ class TestTraverseCommits:
 
     def test_traverse_branches(self, temp_dir):
         """Test traversing multiple branches."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.return_value = ["commit1", "commit2"]
 
             result = list(traverse_commits(temp_dir, branches=["main", "develop"]))
@@ -116,10 +116,10 @@ class TestTraverseCommits:
 
     def test_traverse_git_error(self, temp_dir):
         """Test handling of git errors during traversal."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.side_effect = Exception("Git error")
 
-            with pytest.raises(GitTraverseError) as exc_info:
+            with pytest.raises(GitTraversalError) as exc_info:
                 list(traverse_commits(temp_dir))
 
             assert "Failed to traverse commits" in str(exc_info.value)
@@ -132,7 +132,7 @@ class TestGetCommitMetadata:
         """Test successfully getting commit metadata."""
         commit_hash = "abc123def456"
 
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.side_effect = [
                 ["Fix authentication bug"],  # message
                 ["2024-01-15T10:30:00Z"],    # timestamp
@@ -149,7 +149,7 @@ class TestGetCommitMetadata:
 
     def test_get_commit_metadata_empty_message(self, temp_dir):
         """Test handling commit with empty message."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.side_effect = [
                 [""],  # empty message
                 ["2024-01-15T10:30:00Z"],
@@ -163,7 +163,7 @@ class TestGetCommitMetadata:
 
     def test_get_commit_metadata_no_files(self, temp_dir):
         """Test handling commit with no file changes."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.side_effect = [
                 ["Initial commit"],
                 ["2024-01-15T10:30:00Z"],
@@ -177,10 +177,10 @@ class TestGetCommitMetadata:
 
     def test_get_commit_metadata_git_error(self, temp_dir):
         """Test handling git errors."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.side_effect = Exception("Git error")
 
-            with pytest.raises(GitTraverseError) as exc_info:
+            with pytest.raises(GitTraversalError) as exc_info:
                 get_commit_metadata(temp_dir, "abc123", branch="main")
 
             assert "Failed to get commit metadata" in str(exc_info.value)
@@ -191,7 +191,7 @@ class TestGetChangedFiles:
 
     def test_get_changed_files_success(self, temp_dir):
         """Test successfully getting changed files."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.return_value = [
                 "src/auth.py",
                 "tests/test_auth.py",
@@ -204,7 +204,7 @@ class TestGetChangedFiles:
 
     def test_get_changed_files_empty(self, temp_dir):
         """Test getting changed files for commit with no changes."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.return_value = []
 
             result = get_changed_files(temp_dir, "abc123")
@@ -213,7 +213,7 @@ class TestGetChangedFiles:
 
     def test_get_changed_files_with_status(self, temp_dir):
         """Test getting changed files with status."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.return_value = [
                 "M\tsrc/auth.py",
                 "A\ttests/test_auth.py",
@@ -229,10 +229,10 @@ class TestGetChangedFiles:
 
     def test_get_changed_files_git_error(self, temp_dir):
         """Test handling git errors."""
-        with patch('gimi.index.git_traverse.run_git_command') as mock_run:
+        with patch('gimi.index.git.run_git_command') as mock_run:
             mock_run.side_effect = Exception("Git error")
 
-            with pytest.raises(GitTraverseError) as exc_info:
+            with pytest.raises(GitTraversalError) as exc_info:
                 get_changed_files(temp_dir, "abc123")
 
             assert "Failed to get changed files" in str(exc_info.value)

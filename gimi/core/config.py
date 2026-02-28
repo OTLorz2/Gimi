@@ -23,13 +23,13 @@ class ConfigError(Exception):
 @dataclass
 class LLMConfig:
     """LLM configuration."""
-    provider: str = "anthropic"
-    model: str = "claude-opus-4-6"
+    provider: str = "openai"
+    model: str = "gpt-4o-mini"
     api_key: Optional[str] = None
     api_base: Optional[str] = None
-    temperature: float = 0.1
-    max_tokens: int = 4096
-    timeout: int = 120
+    temperature: float = 0.3
+    max_tokens: int = 2000
+    timeout: float = 60.0
     max_context_tokens: int = 8000
 
 
@@ -49,23 +49,24 @@ class RetrievalConfig:
 class ContextConfig:
     """Context configuration."""
     max_files_per_commit: int = 10
-    max_lines_per_file: int = 100
+    max_lines_per_file: int = 50
     max_total_commits: int = 5
     truncate_strategy: str = "head"
     max_diff_tokens: int = 4000
-    max_total_tokens: int = 8000
+    max_total_tokens: int = 4000
+    enable_cache: bool = True
 
 
 @dataclass
 class IndexConfig:
     """Index configuration."""
-    max_commits: int = 1000
+    max_commits: Optional[int] = None
+    max_age_days: Optional[int] = None
     branches: List[str] = field(default_factory=lambda: ["main", "master"])
+    include_all_branches: bool = False
     batch_size: int = 100
-    embedding_model: str = "text-embedding-3-small"
-    embedding_dimensions: int = 1536
-    embedding_provider: str = "mock"
-    embedding_cache_dir: Optional[str] = None
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_dim: int = 384
 
 
 @dataclass
