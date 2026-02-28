@@ -1,151 +1,166 @@
-"""File locking utilities for .gimi directory operations."""
+"""
+File locking implementation for .gimi directory operations (T2).
 
+This module provides process-level locking for .gimi operations
+to prevent concurrent writes that could corrupt the index.
+"""
 import os
 import time
-import atexit
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 
 class LockError(Exception):
-    """Raised when lock operations fail."""
+    """Error related to lock operations."""
     pass
 
 
-class GimiLock:
+class LockTimeoutError(LockError):
+    """Error raised when lock acquisition times out."""
+    pass
+
+
+class FileLock:
     """
-    File-based lock for .gimi directory write operations.
+    A file-based lock using PID files.
 
-    Uses a PID file in .gimi/lock to coordinate between processes.
-    Only one process can hold the write lock at a time.
+    This implementation creates a lock file containing the process PID.
+    The lock is considered valid if:
+    1. The lock file exists
+    2. The PID in the file corresponds to a running process
+
+    Stale locks (where the owning process no longer exists) are
+    automatically cleaned up.
     """
 
-    LOCK_FILENAME = "lock"
-    LOCK_POLL_INTERVAL = 0.1  # seconds
-    LOCK_ACQUIRE_TIMEOUT = 30  # seconds
-
-    def __init__(self, gimi_dir: Path):
+    def __init__(self, lock_path: Union[str, Path]):
         """
-        Initialize lock manager.
+        Initialize the file lock.
 
         Args:
-            gimi_dir: Path to .gimi directory
+            lock_path: Path to the lock file.
         """
-        self.gimi_dir = gimi_dir
-        self.lock_file = gimi_dir / self.LOCK_FILENAME
+        self.lock_path = Path(lock_path)
         self._owned = False
-        self._pid = os.getpid()
 
-    def _read_lock_pid(self) -> Optional[int]:
-        """Read PID from lock file if it exists."""
-        try:
-            if self.lock_file.exists():
-                content = self.lock_file.read_text().strip()
-                return int(content)
-        except (ValueError, IOError):
-            pass
-        return None
-
-    def _is_process_alive(self, pid: int) -> bool:
-        """Check if a process with given PID exists."""
-        try:
-            os.kill(pid, 0)
-            return True
-        except (OSError, ProcessLookupError):
-            return False
-
-    def _acquire(self, blocking: bool = True, timeout: Optional[float] = None) -> bool:
+    def acquire(
+        self,
+        blocking: bool = True,
+        timeout: Optional[float] = None
+    ) -> bool:
         """
-        Try to acquire the lock.
+        Acquire the lock.
 
         Args:
-            blocking: If True, block until lock is available
-            timeout: Maximum time to wait (None = use default)
+            blocking: If True, block until lock is acquired.
+            If False, return immediately if lock cannot be acquired.
+            timeout: Maximum time to wait for lock (in seconds).
+            Only used if blocking is True.
 
         Returns:
-            True if lock was acquired, False otherwise
-        """
-        if self._owned:
-            return True
+            True if lock was acquired, False if not (only in non-blocking mode).
 
-        timeout = timeout or self.LOCK_ACQUIRE_TIMEOUT
+        Raises:
+            LockError: If lock is already held by another process and
+            blocking is False.
+            LockTimeoutError: If timeout is reached while waiting for lock.
+        """
         start_time = time.time()
 
         while True:
-            # Check if lock file exists
-            existing_pid = self._read_lock_pid()
-
-            if existing_pid is None:
-                # No lock file, try to create one
-                try:
-                    self.lock_file.write_text(str(self._pid))
-                    # Verify we got the lock
-                    current = self._read_lock_pid()
-                    if current == self._pid:
-                        self._owned = True
-                        atexit.register(self.release)
-                        return True
-                except IOError:
-                    pass
-            elif existing_pid == self._pid:
-                # We already own the lock
+            # Check if we already own this lock
+            if self._is_owned_by_us():
                 self._owned = True
                 return True
-            elif not self._is_process_alive(existing_pid):
-                # Stale lock from dead process, try to break it
-                try:
-                    self.lock_file.unlink()
-                    continue  # Try again
-                except IOError:
-                    pass
 
-            if not blocking:
-                return False
+            # Check if lock is held by another process
+            if self._is_locked():
+                if not blocking:
+                    raise LockError(
+                        f"Lock is already held by another process: {self.lock_path}"
+                    )
 
-            # Check timeout
-            if time.time() - start_time > timeout:
-                return False
+                # Check timeout
+                if timeout is not None and (time.time() - start_time) >= timeout:
+                    raise LockTimeoutError(
+                        f"Timeout waiting for lock: {self.lock_path}"
+                    )
 
-            # Wait a bit before retrying
-            time.sleep(self.LOCK_POLL_INTERVAL)
+                # Wait a bit before retrying
+                time.sleep(0.1)
+                continue
 
-    def acquire(self, blocking: bool = True, timeout: Optional[float] = None) -> None:
-        """
-        Acquire the lock or raise LockError.
-
-        Args:
-            blocking: If True, block until lock is available
-            timeout: Maximum time to wait
-
-        Raises:
-            LockError: If lock cannot be acquired
-        """
-        if not self._acquire(blocking, timeout):
-            existing_pid = self._read_lock_pid()
-            raise LockError(
-                f"Could not acquire lock on {self.gimi_dir}. "
-                f"Another process (PID: {existing_pid}) may be holding it. "
-                f"Try again later or remove stale lock file: {self.lock_file}"
-            )
+            # Try to acquire the lock
+            try:
+                self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+                self.lock_path.write_text(str(os.getpid()))
+                self._owned = True
+                return True
+            except Exception as e:
+                raise LockError(f"Failed to acquire lock: {e}")
 
     def release(self) -> None:
-        """Release the lock if owned."""
+        """
+        Release the lock.
+
+        Raises:
+            LockError: If lock is not owned by this process.
+        """
         if not self._owned:
-            return
+            # Check if we own the lock
+            if not self._is_owned_by_us():
+                raise LockError(
+                    "Cannot release lock: not owned by this process"
+                )
 
         try:
-            existing = self._read_lock_pid()
-            if existing == self._pid:
-                self.lock_file.unlink(missing_ok=True)
-        except IOError:
-            pass
-        finally:
+            if self.lock_path.exists():
+                self.lock_path.unlink()
             self._owned = False
-            # Unregister from atexit if possible
+        except Exception as e:
+            raise LockError(f"Failed to release lock: {e}")
+
+    def is_locked(self) -> bool:
+        """
+        Check if the lock is currently held (by any process).
+
+        Returns:
+            True if lock is held, False otherwise.
+        """
+        return self._is_locked()
+
+    def _is_locked(self) -> bool:
+        """Internal method to check if lock is held."""
+        if not self.lock_path.exists():
+            return False
+
+        try:
+            pid = int(self.lock_path.read_text().strip())
+            # Check if process is still running
             try:
-                atexit.unregister(self.release)
-            except (ValueError, AttributeError):
-                pass
+                os.kill(pid, 0)
+                return True
+            except ProcessLookupError:
+                # Process doesn't exist, clean up stale lock
+                try:
+                    self.lock_path.unlink()
+                except:
+                    pass
+                return False
+        except (ValueError, IOError):
+            # Invalid lock file content
+            return False
+
+    def _is_owned_by_us(self) -> bool:
+        """Check if this process owns the lock."""
+        if not self.lock_path.exists():
+            return False
+
+        try:
+            pid = int(self.lock_path.read_text().strip())
+            return pid == os.getpid()
+        except (ValueError, IOError):
+            return False
 
     def __enter__(self):
         """Context manager entry."""
@@ -158,68 +173,55 @@ class GimiLock:
         return False
 
 
-def with_lock(gimi_dir: Path, blocking: bool = True, timeout: Optional[float] = None):
+# Convenience functions for simple lock operations
+
+def acquire_lock(
+    lock_path: Union[str, Path],
+    blocking: bool = True,
+    timeout: Optional[float] = None
+) -> bool:
     """
-    Decorator/context manager for locking operations.
+    Acquire a file lock.
 
     Args:
-        gimi_dir: Path to .gimi directory
-        blocking: Whether to block waiting for lock
-        timeout: Maximum wait time
+        lock_path: Path to the lock file.
+        blocking: If True, block until lock is acquired.
+        timeout: Maximum time to wait (only if blocking is True).
 
     Returns:
-        Context manager that yields GimiLock instance
+        True if lock was acquired.
 
-    Example:
-        with with_lock(gimi_dir) as lock:
-            # Do locked operations
-            pass
+    Raises:
+        LockError: If lock cannot be acquired.
+        LockTimeoutError: If timeout is reached.
     """
-    lock = GimiLock(gimi_dir)
-    lock.acquire(blocking, timeout)
-    try:
-        yield lock
-    finally:
-        lock.release()
+    lock = FileLock(lock_path)
+    return lock.acquire(blocking=blocking, timeout=timeout)
 
 
-# Global lock instance for simple acquire/release pattern
-_lock_instance: Optional[GimiLock] = None
-
-
-def acquire_lock(lock_file: str, blocking: bool = True, timeout: Optional[float] = None) -> bool:
+def release_lock(lock_path: Union[str, Path]) -> None:
     """
-    Acquire lock using a lock file path.
+    Release a file lock.
 
     Args:
-        lock_file: Path to lock file (for compatibility with older code)
-        blocking: Whether to block waiting for lock
-        timeout: Maximum time to wait in seconds
+        lock_path: Path to the lock file.
+
+    Raises:
+        LockError: If lock cannot be released.
+    """
+    lock = FileLock(lock_path)
+    lock.release()
+
+
+def is_locked(lock_path: Union[str, Path]) -> bool:
+    """
+    Check if a lock is currently held.
+
+    Args:
+        lock_path: Path to the lock file.
 
     Returns:
-        True if lock was acquired, False otherwise
+        True if lock is held, False otherwise.
     """
-    global _lock_instance
-    # Extract gimi_dir from lock_file path
-    lock_path = Path(lock_file)
-    gimi_dir = lock_path.parent
-
-    _lock_instance = GimiLock(gimi_dir)
-    try:
-        _lock_instance.acquire(blocking=blocking, timeout=timeout)
-        return True
-    except LockError:
-        return False
-
-
-def release_lock(lock_file: str) -> None:
-    """
-    Release the lock.
-
-    Args:
-        lock_file: Path to lock file (for compatibility)
-    """
-    global _lock_instance
-    if _lock_instance:
-        _lock_instance.release()
-        _lock_instance = None
+    lock = FileLock(lock_path)
+    return lock.is_locked()
