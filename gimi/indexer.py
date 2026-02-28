@@ -16,9 +16,9 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta
 from enum import Enum, auto
 
-from gimi.git_traversal import GitTraversal, CommitMeta
-from gimi.light_index import LightIndex
-from gimi.vector_index import VectorIndex
+from gimi.index.git import GitTraversal, CommitMetadata
+from gimi.index.lightweight import LightweightIndex
+from gimi.index.vector_index import VectorIndex, VectorCommit
 from gimi.config import LargeRepoConfig
 from gimi.lock import gimi_lock
 

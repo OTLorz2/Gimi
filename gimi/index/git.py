@@ -207,6 +207,29 @@ class GitTraversal:
             except GitTraversalError:
                 continue
 
+    def get_commit_files(self, commit_hash: str) -> List[str]:
+        """
+        Get list of files changed in a commit.
+
+        Args:
+            commit_hash: Hash of the commit
+
+        Returns:
+            List of file paths
+        """
+        result = self._run_git([
+            'diff-tree',
+            '--no-commit-id',
+            '--name-only',
+            '-r',
+            commit_hash
+        ], check=False)
+
+        files = []
+        if result.returncode == 0:
+            files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
+        return files
+
     def _parse_log_output(self, output: str) -> List[CommitMetadata]:
         """Parse git log output into CommitMetadata objects."""
         commits = []
