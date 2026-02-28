@@ -250,13 +250,13 @@ def load_config(repo_root: Path) -> GimiConfig:
         return GimiConfig()
 
 
-def save_config(repo_root: Path, config: Dict[str, Any]) -> None:
+def save_config(repo_root: Path, config: Union[Dict[str, Any], "GimiConfig"]) -> None:
     """
     Save configuration to .gimi/config.json.
 
     Args:
         repo_root: Path to the repository root.
-        config: Configuration dictionary to save.
+        config: Configuration dictionary or GimiConfig object to save.
 
     Raises:
         ConfigError: If unable to save configuration.
@@ -267,8 +267,14 @@ def save_config(repo_root: Path, config: Dict[str, Any]) -> None:
         # Ensure parent directory exists
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Convert GimiConfig to dict if needed
+        if hasattr(config, 'to_dict'):
+            config_dict = config.to_dict()
+        else:
+            config_dict = config
+
         with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=2, sort_keys=True)
+            json.dump(config_dict, f, indent=2, sort_keys=True)
     except Exception as e:
         raise ConfigError(f"Failed to save configuration: {e}")
 

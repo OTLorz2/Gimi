@@ -120,6 +120,16 @@ class GimiConfig:
         return config
 
 
+# Convenience functions for backward compatibility
+
+def get_config_path(gimi_path: Path) -> Path:
+    """获取配置文件路径"""
+    # If gimi_path already ends with .gimi, don't add another .gimi
+    if gimi_path.name == ".gimi":
+        return gimi_path / "config.json"
+    return gimi_path / ".gimi" / "config.json"
+
+
 # =============================================================================
 # Refs 快照管理
 # =============================================================================
