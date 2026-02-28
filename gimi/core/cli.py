@@ -287,7 +287,7 @@ def main() -> int:
                 if args.verbose:
                     print("Generating suggestions...")
 
-                from gimi.llm.client import LLMClient
+                from gimi.llm.client import OpenAIClient, AnthropicClient
                 from gimi.llm.prompt_builder import PromptBuilder
 
                 prompt_builder = PromptBuilder(config.llm)
@@ -307,8 +307,34 @@ def main() -> int:
                     diff_results=diff_results
                 )
 
-                llm_client = LLMClient(config.llm)
-                response = llm_client.generate(prompt)
+                # Initialize LLM client based on provider
+                if config.llm.provider == "openai":
+                    llm_client = OpenAIClient(
+                        api_key=config.llm.api_key,
+                        model=config.llm.model,
+                        api_base=config.llm.api_base,
+                        timeout=config.llm.timeout
+                    )
+                elif config.llm.provider == "anthropic":
+                    llm_client = AnthropicClient(
+                        api_key=config.llm.api_key,
+                        model=config.llm.model,
+                        api_base=config.llm.api_base,
+                        timeout=config.llm.timeout
+                    )
+                else:
+                    raise ValueError(f"Unknown LLM provider: {config.llm.provider}")
+
+                messages = prompt.to_messages()
+                llm_response = llm_client.complete(
+                    messages=messages,
+                    temperature=config.llm.temperature,
+                    max_tokens=config.llm.max_tokens
+                )
+                response = {
+                    'text': llm_response.content,
+                    'duration': llm_response.latency_ms / 1000
+                }
 
                 # Output results
                 print()
