@@ -1,0 +1,2 @@
+[console_scripts]
+gimi = gimi.core.cli:main

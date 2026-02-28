@@ -181,3 +181,45 @@ def with_lock(gimi_dir: Path, blocking: bool = True, timeout: Optional[float] = 
         yield lock
     finally:
         lock.release()
+
+
+# Global lock instance for simple acquire/release pattern
+_lock_instance: Optional[GimiLock] = None
+
+
+def acquire_lock(lock_file: str, blocking: bool = True, timeout: Optional[float] = None) -> bool:
+    """
+    Acquire lock using a lock file path.
+
+    Args:
+        lock_file: Path to lock file (for compatibility with older code)
+        blocking: Whether to block waiting for lock
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        True if lock was acquired, False otherwise
+    """
+    global _lock_instance
+    # Extract gimi_dir from lock_file path
+    lock_path = Path(lock_file)
+    gimi_dir = lock_path.parent
+
+    _lock_instance = GimiLock(gimi_dir)
+    try:
+        _lock_instance.acquire(blocking=blocking, timeout=timeout)
+        return True
+    except LockError:
+        return False
+
+
+def release_lock(lock_file: str) -> None:
+    """
+    Release the lock.
+
+    Args:
+        lock_file: Path to lock file (for compatibility)
+    """
+    global _lock_instance
+    if _lock_instance:
+        _lock_instance.release()
+        _lock_instance = None
