@@ -167,19 +167,21 @@ class VectorIndex:
         """
         parts = [commit.message]
 
-        # 添加文件路径信息
-        if commit.changed_files:
+        # 添加文件路径信息 (支持 changed_files 或 files_changed)
+        files = getattr(commit, 'changed_files', None) or getattr(commit, 'files_changed', None)
+        if files:
             # 提取文件名和路径关键词
             file_parts = []
-            for f in commit.changed_files[:20]:  # 限制数量
+            for f in files[:20]:  # 限制数量
                 # 提取文件名和扩展名
                 path_parts = f.replace("/", " ").replace("\\", " ").split()
                 file_parts.extend(path_parts)
             parts.extend(file_parts)
 
-        # 添加作者信息
-        if commit.author:
-            parts.append(commit.author)
+        # 添加作者信息 (支持 author 或 author_name)
+        author = getattr(commit, 'author', None) or getattr(commit, 'author_name', None)
+        if author:
+            parts.append(author)
 
         return " ".join(parts)
 
