@@ -8,7 +8,9 @@ from datetime import datetime
 import numpy as np
 
 from gimi.vector_index import VectorIndex, SimpleEmbedding, VectorEntry
-from gimi.git_traversal import CommitMeta
+from gimi.index.git import CommitMetadata
+# Alias for convenience
+CommitMeta = CommitMetadata
 
 
 class TestSimpleEmbedding(unittest.TestCase):
