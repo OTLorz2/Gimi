@@ -16,6 +16,8 @@ from gimi.core.git import (
 from gimi.core.config import IndexConfig
 from gimi.core.refs import capture_refs_snapshot, save_refs_snapshot
 from gimi.index.lightweight import LightweightIndex, IndexedCommit
+from gimi.index.vector_index import VectorIndex, VectorCommit
+from gimi.index.embeddings import get_embedding_provider
 
 
 class IndexBuilderError(Exception):
@@ -123,11 +125,15 @@ class IndexBuilder:
         if not branches:
             raise IndexBuilderError("No branches to index")
 
+        # Build lightweight index
         with LightweightIndex(self.index_dir) as index:
             index.initialize()
 
             for branch in branches:
                 self._index_branch(index, branch, incremental)
+
+        # Build vector index with embeddings
+        self._build_vector_index()
 
         # Save refs snapshot after successful build
         snapshot = capture_refs_snapshot(self.repo_root)
@@ -135,6 +141,65 @@ class IndexBuilder:
 
         # Clear checkpoint after successful build
         self.checkpoint.clear()
+
+    def _build_vector_index(self) -> None:
+        """Build vector index for semantic search."""
+        import struct
+
+        # Get embedding provider
+        embedding_provider = get_embedding_provider(self.config)
+
+        with VectorIndex(self.gimi_dir / "vectors") as vector_index:
+            vector_index.initialize()
+
+            # Get all commits from lightweight index
+            with LightweightIndex(self.index_dir) as index:
+                index.initialize()
+                commits = index.get_all_commits()
+
+            if not commits:
+                return
+
+            # Generate embeddings in batches
+            batch_size = 32
+            total = len(commits)
+            processed = 0
+
+            for i in range(0, total, batch_size):
+                batch = commits[i:i + batch_size]
+
+                # Prepare embedding texts
+                texts = []
+                for commit in batch:
+                    changed_files = json.loads(commit.changed_files)
+                    text = VectorCommit.create_embedding_input(commit.message, changed_files)
+                    texts.append(text)
+
+                # Generate embeddings
+                try:
+                    embeddings = embedding_provider.embed(texts)
+                except Exception as e:
+                    self._report_progress(f"Embedding generation failed: {e}", processed, total)
+                    continue
+
+                # Store in vector index
+                vector_commits = []
+                for commit, embedding in zip(batch, embeddings):
+                    # Convert embedding to bytes
+                    embedding_bytes = struct.pack(f"{len(embedding)}f", *embedding)
+
+                    vector_commits.append(VectorCommit(
+                        hash=commit.hash,
+                        message=commit.message,
+                        changed_files=commit.changed_files,
+                        embedding=embedding_bytes
+                    ))
+
+                if vector_commits:
+                    vector_index.add_commits(vector_commits)
+
+                processed += len(batch)
+                self._report_progress("Building vector index", processed, total)
 
     def _index_branch(
         self,
