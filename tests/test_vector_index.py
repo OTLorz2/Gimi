@@ -8,7 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from gimi.vector_index import VectorIndex, SimpleEmbedding, VectorEntry
-from gimi.light_index import CommitMetadata
+from gimi.core.git import CommitMetadata
 
 
 class TestSimpleEmbedding(unittest.TestCase):
