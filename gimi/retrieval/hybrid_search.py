@@ -45,29 +45,38 @@ class HybridSearcher:
     def __init__(
         self,
         lightweight_index: LightweightIndex,
+        vector_index: Optional[VectorIndex] = None,
+        embedding_provider: Optional[EmbeddingProvider] = None,
         keyword_weight: float = 0.3,
         path_weight: float = 0.3,
         vector_weight: float = 0.4,
         use_rrf: bool = True,
         rrf_k: int = 60,
+        enable_vector_search: bool = True,
     ):
         """
         初始化混合检索器
 
         Args:
             lightweight_index: 轻量索引实例
+            vector_index: 向量索引实例（可选，用于语义搜索）
+            embedding_provider: 嵌入提供者（可选，用于生成查询向量）
             keyword_weight: 关键词检索权重
             path_weight: 路径检索权重
             vector_weight: 向量检索权重
             use_rrf: 是否使用RRF融合
             rrf_k: RRF参数
+            enable_vector_search: 是否启用向量搜索
         """
         self.lw_index = lightweight_index
+        self.vector_index = vector_index
+        self.embedding_provider = embedding_provider
         self.keyword_weight = keyword_weight
         self.path_weight = path_weight
         self.vector_weight = vector_weight
         self.use_rrf = use_rrf
         self.rrf_k = rrf_k
+        self.enable_vector_search = enable_vector_search
 
         # 归一化权重
         total = keyword_weight + path_weight + vector_weight
