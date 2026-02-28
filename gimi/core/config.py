@@ -86,6 +86,66 @@ class GimiConfig:
             "index": asdict(self.index)
         }
 
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Get configuration value by key path.
+
+        Supports dot notation for nested values (e.g., 'retrieval.top_k').
+
+        Args:
+            key: Configuration key (supports dot notation)
+            default: Default value if key not found
+
+        Returns:
+            Configuration value or default
+        """
+        parts = key.split(".")
+        current: Any = self
+
+        for part in parts:
+            if hasattr(current, part):
+                current = getattr(current, part)
+            elif isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                return default
+
+        return current
+
+    def set(self, key: str, value: Any) -> None:
+        """
+        Set configuration value by key path.
+
+        Supports dot notation for nested values (e.g., 'retrieval.top_k').
+
+        Args:
+            key: Configuration key (supports dot notation)
+            value: Value to set
+        """
+        parts = key.split(".")
+        current: Any = self
+
+        for i, part in enumerate(parts[:-1]):
+            if hasattr(current, part):
+                current = getattr(current, part)
+            elif isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                # Create nested dict if doesn't exist
+                setattr(current, part, {})
+                current = getattr(current, part)
+
+        # Set final value
+        last_part = parts[-1]
+        if hasattr(current, last_part):
+            setattr(current, last_part, value)
+        elif isinstance(current, dict):
+            current[last_part] = value
+
+
+# Alias for backward compatibility and convenience
+Config = GimiConfig
+
 
 def get_config_path(gimi_dir: Path) -> Path:
     """Get path to config file."""
