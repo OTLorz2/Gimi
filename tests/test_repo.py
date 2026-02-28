@@ -54,7 +54,8 @@ class TestFindRepoRoot(unittest.TestCase):
         try:
             with self.assertRaises(RepoError) as ctx:
                 find_repo_root(Path(non_repo))
-            self.assertIn("Not a git repository", str(ctx.exception))
+            # Error message contains "not a git repository" (case insensitive)
+            self.assertIn("not a git repository", str(ctx.exception).lower())
         finally:
             import shutil
             shutil.rmtree(non_repo, ignore_errors=True)
