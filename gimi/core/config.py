@@ -286,6 +286,10 @@ def save_config(config: Union[Dict[str, Any], "GimiConfig", Path], repo_root: Op
         # Called as save_config(config_dict, repo_root)
         config_path = get_config_path(repo_root)
         config_dict = config
+    elif hasattr(config, 'to_dict') and isinstance(repo_root, (Path, str)):
+        # Called as save_config(gimi_config, repo_root) where gimi_config is GimiConfig
+        config_path = get_config_path(repo_root)
+        config_dict = config.to_dict()
     elif isinstance(config, Path) and repo_root is not None:
         # Called as save_config(config_path, repo_root) - deprecated
         config_path = config
