@@ -341,8 +341,7 @@ class IncrementalIndexer:
             self.light_index.clear()
 
             # 清空向量索引
-            self._entries = {}
-            self._save_index()
+            self.vector_index.clear()
 
             # 删除进度文件
             if self.progress_path.exists():
