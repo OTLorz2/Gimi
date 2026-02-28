@@ -75,15 +75,43 @@
 - Progress percentage calculation
 - Batch processing tracking
 
-### Phase 4: Retrieval - IN PROGRESS
+### Phase 4: Retrieval - COMPLETE ✓
 
 | Task | Status | Description |
 |------|--------|-------------|
-| T10 | ⏳ | Keyword and path retrieval |
-| T11 | ⏳ | Semantic retrieval and fusion |
-| T12 | ⏳ | Optional two-stage reranking |
+| T10 | ✓ | Keyword and path retrieval |
+| T11 | ✓ | Semantic retrieval and fusion |
+| T12 | ✓ | Optional two-stage reranking |
 
 **Dependencies:** T7 (lightweight index), T8 (vector index)
+
+**Files Created:**
+- `gimi/search/keyword.py` - T10: Keyword and path search
+- `gimi/search/semantic.py` - T11: Semantic search and fusion
+- `gimi/search/rerank.py` - T12: Two-stage reranking
+
+**T10 Features (keyword.py):**
+- KeywordSearcher class for keyword/path search
+- search_by_keyword() with relevance scoring
+- search_by_path() for file-based search
+- Branch filtering support
+- TF-like relevance scoring
+
+**T11 Features (semantic.py):**
+- SemanticSearcher class for vector search
+- Query embedding and similarity search
+- SearchFusion class for result combination
+- Weighted fusion strategy
+- RRF (Reciprocal Rank Fusion) strategy
+- Score normalization
+
+**T12 Features (rerank.py):**
+- Reranker abstract base class
+- CrossEncoderReranker implementation
+- LLMReranker implementation
+- NoOpReranker for disabled mode
+- create_reranker() factory function
+- Relevance scoring with commit context
 
 ### Phase 5: Context and LLM - PENDING
 
