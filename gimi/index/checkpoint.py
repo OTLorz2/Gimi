@@ -5,6 +5,7 @@ This module implements checkpointing for indexing large repositories.
 It allows indexing to resume from where it left off if interrupted.
 """
 
+import hashlib
 import json
 import time
 from dataclasses import dataclass, field
