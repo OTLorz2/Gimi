@@ -175,7 +175,7 @@ class IncrementalIndexer:
         branch: str,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[CommitMeta]:
+    ) -> List[CommitMetadata]:
         """获取一批 commit"""
         commits = []
         for commit in self.git.get_commits(
