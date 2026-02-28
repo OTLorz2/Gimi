@@ -119,11 +119,18 @@ class Checkpoint:
 
     def can_resume(self) -> bool:
         """Check if there's a valid checkpoint to resume from."""
-        return (
-            self.checkpoint_file.exists() and
-            self.data.get("in_progress", False) and
-            self.data.get("branches")
-        )
+        if not self.checkpoint_file.exists():
+            return False
+        if not self.data.get("in_progress", False):
+            return False
+        branches = self.data.get("branches", {})
+        if not branches:
+            return False
+        # Check if any branch is in_progress
+        for branch_state in branches.values():
+            if branch_state.get("status") == "in_progress":
+                return True
+        return False
 
     def get_resume_branches(self) -> List[str]:
         """Get list of branches that can be resumed."""
