@@ -17,7 +17,7 @@ import numpy as np
 
 from gimi.config import GimiConfig
 from gimi.index.git import CommitMetadata
-from gimi.lock import FileLock
+from gimi.utils.lock import FileLock
 
 
 class EmbeddingError(Exception):
