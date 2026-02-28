@@ -25,10 +25,10 @@ todos:
     status: completed
   - id: T8
     content: 向量索引与 embedding
-    status: pending
+    status: completed
   - id: T9
     content: 大仓库策略与断点续跑
-    status: pending
+    status: completed
   - id: T10
     content: 关键词与路径检索
     status: completed
@@ -89,10 +89,17 @@ isProject: false
 - **T16 可观测性日志**: 实现 `GimiLogger`，支持结构化JSON日志、请求追踪、性能计时
 - **T17 错误处理与文档**: 实现统一的错误处理、用户友好的错误提示、README文档
 
-### 待实现功能
+### 已完成功能 (补充)
 
-- **T8 向量索引与 embedding**: 预留接口，待接入向量数据库
-- **T9 大仓库策略与断点续跑**: 基础批次处理已实现，完整断点续跑待完善
+- **T8 向量索引与 embedding**: 实现完整的向量索引系统，包括：
+  - `gimi/vector_index.py`: 向量存储和相似度搜索
+  - `gimi/index/embeddings.py`: 多种 embedding 提供方 (Mock/Local/OpenAI)
+  - `gimi/index/vector.py`: 向量索引数据库操作
+
+- **T9 大仓库策略与断点续跑**: 实现完整的断点续跑机制，包括：
+  - `gimi/index/checkpoint.py`: Checkpoint 管理和恢复
+  - 批次处理和进度跟踪
+  - 失败恢复和重试机制
 
 ## 项目结构
 
