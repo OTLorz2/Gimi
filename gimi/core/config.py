@@ -1,238 +1,210 @@
-"""Configuration management for Gimi."""
+"""
+Configuration loading and management (T4).
 
+This module handles:
+- Loading configuration from .gimi/config.json
+- Saving configuration
+- Providing default configuration values
+- Configuration validation
+"""
 import json
 import os
-from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, Optional, Union
 
 
 class ConfigError(Exception):
-    """Raised when configuration operations fail."""
+    """Error related to configuration operations."""
     pass
 
 
-@dataclass
-class RetrievalConfig:
-    """Configuration for retrieval parameters."""
-    keyword_candidates: int = 100  # Initial candidates from keyword/path search
-    top_k: int = 20  # Final top-K commits after semantic retrieval
-    rerank_top_k: int = 10  # After optional reranking
-    enable_rerank: bool = False  # Enable two-stage reranking
+# Default configuration values
+DEFAULT_CONFIG = {
+    "llm": {
+        "provider": "anthropic",
+        "model": "claude-opus-4-6",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "max_tokens": 4096,
+        "temperature": 0.1
+    },
+    "retrieval": {
+        "top_k": 10,
+        "candidate_pool_size": 50,
+        "enable_two_stage_rerank": False,
+        "keyword_weight": 0.3,
+        "semantic_weight": 0.7
+    },
+    "context": {
+        "max_files_per_commit": 10,
+        "max_lines_per_file": 100,
+        "max_total_commits": 5,
+        "truncate_strategy": "head"
+    },
+    "index": {
+        "max_commits": 1000,
+        "branches": ["main", "master"],
+        "batch_size": 100,
+        "embedding_model": "text-embedding-3-small",
+        "embedding_dimensions": 1536
+    },
+    "observability": {
+        "log_level": "INFO",
+        "enable_metrics": True,
+        "log_file": None,
+        "max_log_size_mb": 100
+    }
+}
 
 
-@dataclass
-class ContextConfig:
-    """Configuration for context assembly."""
-    max_files_per_commit: int = 10  # Maximum files to include per commit
-    max_lines_per_file: int = 50  # Maximum lines per file in diff
-    max_total_tokens: int = 4000  # Estimated token limit for context
-    enable_cache: bool = True  # Enable diff caching
-
-
-@dataclass
-class LLMConfig:
-    """Configuration for LLM API."""
-    provider: str = "openai"  # openai, anthropic, etc.
-    model: str = "gpt-4o-mini"  # Model name
-    api_key: Optional[str] = None  # API key (can also use env var)
-    api_base: Optional[str] = None  # Custom API base URL
-    max_tokens: int = 2000  # Maximum tokens in response
-    max_context_tokens: int = 4000  # Maximum tokens for context (diffs)
-    temperature: float = 0.3  # Sampling temperature
-    timeout: float = 60.0  # Request timeout in seconds
-
-
-@dataclass
-class IndexConfig:
-    """Configuration for index building."""
-    max_commits: Optional[int] = None  # Max commits to index (None = unlimited)
-    max_age_days: Optional[int] = None  # Only index commits within N days
-    branches: List[str] = field(default_factory=lambda: ["main", "master"])  # Branches to index
-    include_all_branches: bool = False  # Index all branches
-    batch_size: int = 100  # Commits to process per batch (for checkpointing)
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"  # For semantic search
-    embedding_dim: int = 384  # Dimension of embeddings
-
-
-@dataclass
-class GimiConfig:
-    """Main configuration class for Gimi."""
-    retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
-    context: ContextConfig = field(default_factory=ContextConfig)
-    llm: LLMConfig = field(default_factory=LLMConfig)
-    index: IndexConfig = field(default_factory=IndexConfig)
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "GimiConfig":
-        """Create config from dictionary."""
-        retrieval = RetrievalConfig(**data.get("retrieval", {}))
-        context = ContextConfig(**data.get("context", {}))
-        llm = LLMConfig(**data.get("llm", {}))
-        index = IndexConfig(**data.get("index", {}))
-
-        return cls(
-            retrieval=retrieval,
-            context=context,
-            llm=llm,
-            index=index
-        )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert config to dictionary."""
-        return {
-            "retrieval": asdict(self.retrieval),
-            "context": asdict(self.context),
-            "llm": asdict(self.llm),
-            "index": asdict(self.index)
-        }
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get configuration value by key path.
-
-        Supports dot notation for nested values (e.g., 'retrieval.top_k').
-
-        Args:
-            key: Configuration key (supports dot notation)
-            default: Default value if key not found
-
-        Returns:
-            Configuration value or default
-        """
-        parts = key.split(".")
-        current: Any = self
-
-        for part in parts:
-            if hasattr(current, part):
-                current = getattr(current, part)
-            elif isinstance(current, dict) and part in current:
-                current = current[part]
-            else:
-                return default
-
-        return current
-
-    def set(self, key: str, value: Any) -> None:
-        """
-        Set configuration value by key path.
-
-        Supports dot notation for nested values (e.g., 'retrieval.top_k').
-
-        Args:
-            key: Configuration key (supports dot notation)
-            value: Value to set
-        """
-        parts = key.split(".")
-        current: Any = self
-
-        for i, part in enumerate(parts[:-1]):
-            if hasattr(current, part):
-                current = getattr(current, part)
-            elif isinstance(current, dict) and part in current:
-                current = current[part]
-            else:
-                # Create nested dict if doesn't exist
-                setattr(current, part, {})
-                current = getattr(current, part)
-
-        # Set final value
-        last_part = parts[-1]
-        if hasattr(current, last_part):
-            setattr(current, last_part, value)
-        elif isinstance(current, dict):
-            current[last_part] = value
-
-
-# Alias for backward compatibility and convenience
-Config = GimiConfig
-
-
-def get_config_path(gimi_dir: Path) -> Path:
-    """Get path to config file."""
-    return gimi_dir / "config.json"
-
-
-def load_config(gimi_dir: Path, custom_path: Optional[Path] = None) -> GimiConfig:
+def get_config_path(repo_root: Path) -> Path:
     """
-    Load configuration from file.
+    Get the path to the config file.
 
     Args:
-        gimi_dir: Path to .gimi directory
-        custom_path: Optional custom config file path
+        repo_root: Path to the repository root.
 
     Returns:
-        Loaded configuration
-
-    Raises:
-        ConfigError: If config file is invalid
+        Path to the config file.
     """
-    config_path = custom_path or get_config_path(gimi_dir)
-
-    if not config_path.exists():
-        # Return default config
-        return GimiConfig()
-
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return GimiConfig.from_dict(data)
-    except json.JSONDecodeError as e:
-        raise ConfigError(f"Invalid JSON in config file: {e}")
-    except Exception as e:
-        raise ConfigError(f"Failed to load config: {e}")
+    return repo_root / ".gimi" / "config.json"
 
 
-def save_config(config: GimiConfig, gimi_dir: Path, custom_path: Optional[Path] = None) -> None:
+def load_config(repo_root: Path) -> Dict[str, Any]:
     """
-    Save configuration to file.
+    Load configuration from .gimi/config.json.
+
+    If the config file doesn't exist or is invalid, returns the default
+    configuration.
 
     Args:
-        config: Configuration to save
-        gimi_dir: Path to .gimi directory
-        custom_path: Optional custom config file path
+        repo_root: Path to the repository root.
+
+    Returns:
+        Configuration dictionary.
+    """
+    config_path = get_config_path(repo_root)
+
+    if not config_path.exists():
+        return DEFAULT_CONFIG.copy()
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            loaded_config = json.load(f)
+
+        # Merge with defaults
+        return merge_configs(DEFAULT_CONFIG.copy(), loaded_config)
+    except json.JSONDecodeError as e:
+        # Invalid JSON, return defaults
+        return DEFAULT_CONFIG.copy()
+    except Exception as e:
+        # Other errors, return defaults
+        return DEFAULT_CONFIG.copy()
+
+
+def save_config(repo_root: Path, config: Dict[str, Any]) -> None:
+    """
+    Save configuration to .gimi/config.json.
+
+    Args:
+        repo_root: Path to the repository root.
+        config: Configuration dictionary to save.
 
     Raises:
-        ConfigError: If config cannot be saved
+        ConfigError: If unable to save configuration.
     """
-    config_path = custom_path or get_config_path(gimi_dir)
+    config_path = get_config_path(repo_root)
 
     try:
         # Ensure parent directory exists
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Don't save sensitive data (API key) to file if it comes from env
-        data = config.to_dict()
-
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, sort_keys=True)
     except Exception as e:
-        raise ConfigError(f"Failed to save config: {e}")
+        raise ConfigError(f"Failed to save configuration: {e}")
 
 
-def init_config(gimi_dir: Path) -> GimiConfig:
+def merge_configs(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Initialize default configuration if it doesn't exist.
+    Merge two configuration dictionaries.
+
+    Values from the override config take precedence over base config.
+    Nested dictionaries are merged recursively.
 
     Args:
-        gimi_dir: Path to .gimi directory
+        base: Base configuration.
+        override: Override configuration.
 
     Returns:
-        Configuration (loaded or default)
+        Merged configuration.
     """
-    config_path = get_config_path(gimi_dir)
+    result = base.copy()
 
-    if config_path.exists():
-        return load_config(gimi_dir)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            # Recursively merge nested dicts
+            result[key] = merge_configs(result[key], value)
+        else:
+            # Override value
+            result[key] = value
 
-    # Create default config
-    config = GimiConfig()
+    return result
 
-    # Try to get API key from environment
-    if os.environ.get("OPENAI_API_KEY"):
-        config.llm.api_key = os.environ.get("OPENAI_API_KEY")
 
-    # Save default config
-    save_config(config, gimi_dir)
+def get_config_value(
+    config: Dict[str, Any],
+    key_path: str,
+    default: Any = None
+) -> Any:
+    """
+    Get a configuration value by key path.
 
-    return config
+    Supports nested keys using dot notation (e.g., "llm.model").
+
+    Args:
+        config: Configuration dictionary.
+        key_path: Key path (e.g., "llm.model" or "top_k").
+        default: Default value if key not found.
+
+    Returns:
+        Configuration value, or default if not found.
+    """
+    keys = key_path.split('.')
+    value = config
+
+    for key in keys:
+        if isinstance(value, dict) and key in value:
+            value = value[key]
+        else:
+            return default
+
+    return value
+
+
+def set_config_value(
+    config: Dict[str, Any],
+    key_path: str,
+    value: Any
+) -> None:
+    """
+    Set a configuration value by key path.
+
+    Supports nested keys using dot notation (e.g., "llm.model").
+    Creates intermediate dictionaries as needed.
+
+    Args:
+        config: Configuration dictionary.
+        key_path: Key path (e.g., "llm.model" or "top_k").
+        value: Value to set.
+    """
+    keys = key_path.split('.')
+    target = config
+
+    # Navigate to the parent of the target key
+    for key in keys[:-1]:
+        if key not in target:
+            target[key] = {}
+        target = target[key]
+
+    # Set the value
+    target[keys[-1]] = value
