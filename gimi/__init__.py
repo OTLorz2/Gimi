@@ -17,9 +17,8 @@ __author__ = "Gimi Team"
 
 # Core modules - use core package
 from .core.repo import (
-    find_repo_root,
-    ensure_gimi_structure,
-    GimiRepoError,
+    RepoResolver,
+    initialize_repo,
     RepoError,
 )
 
@@ -27,28 +26,43 @@ from .core.lock import (
     FileLock,
     LockError,
     LockTimeoutError,
+    GimiLock,
+    with_lock,
 )
 
 from .core.config import (
     load_config,
     save_config,
+    init_config,
     GimiConfig,
+    LLMConfig,
+    RetrievalConfig,
+    ContextConfig,
+    IndexConfig,
+    ConfigError,
 )
 
 __all__ = [
     # Version
     "__version__",
     # Repository
-    "find_repo_root",
-    "ensure_gimi_structure",
-    "GimiRepoError",
+    "RepoResolver",
+    "initialize_repo",
     "RepoError",
     # Locking
     "FileLock",
     "LockError",
     "LockTimeoutError",
+    "GimiLock",
+    "with_lock",
     # Config
     "load_config",
     "save_config",
+    "init_config",
     "GimiConfig",
+    "LLMConfig",
+    "RetrievalConfig",
+    "ContextConfig",
+    "IndexConfig",
+    "ConfigError",
 ]
