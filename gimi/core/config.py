@@ -217,7 +217,7 @@ def get_config_path(repo_root: Path) -> Path:
     return repo_root / ".gimi" / "config.json"
 
 
-def load_config(repo_root: Path) -> Dict[str, Any]:
+def load_config(repo_root: Path) -> GimiConfig:
     """
     Load configuration from .gimi/config.json.
 
@@ -228,25 +228,25 @@ def load_config(repo_root: Path) -> Dict[str, Any]:
         repo_root: Path to the repository root.
 
     Returns:
-        Configuration dictionary.
+        GimiConfig object.
     """
     config_path = get_config_path(repo_root)
 
     if not config_path.exists():
-        return DEFAULT_CONFIG.copy()
+        return GimiConfig()
 
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             loaded_config = json.load(f)
 
-        # Merge with defaults
-        return merge_configs(DEFAULT_CONFIG.copy(), loaded_config)
+        # Convert to GimiConfig
+        return GimiConfig._from_dict(loaded_config)
     except json.JSONDecodeError as e:
         # Invalid JSON, return defaults
-        return DEFAULT_CONFIG.copy()
+        return GimiConfig()
     except Exception as e:
         # Other errors, return defaults
-        return DEFAULT_CONFIG.copy()
+        return GimiConfig()
 
 
 def save_config(repo_root: Path, config: Dict[str, Any]) -> None:
