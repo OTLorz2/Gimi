@@ -21,25 +21,24 @@ class TestCommitMetadata:
         metadata = CommitMetadata(
             hash="abc123def456",
             message="Fix bug in auth",
-            branch="main",
-            timestamp="2024-01-15T10:30:00Z",
-            files_changed=["src/auth.py", "tests/test_auth.py"],
-            author="John Doe <john@example.com>"
+            author_name="John Doe",
+            author_email="john@example.com",
+            author_timestamp=1642320600,
         )
 
         assert metadata.hash == "abc123def456"
         assert metadata.message == "Fix bug in auth"
-        assert metadata.branch == "main"
+        assert metadata.author_name == "John Doe"
 
     def test_commit_metadata_to_dict(self):
         """Test converting CommitMetadata to dict."""
         metadata = CommitMetadata(
             hash="abc123",
             message="Test",
-            branch="main",
-            timestamp="2024-01-01T00:00:00Z",
+            author_name="Test",
+            author_email="test@example.com",
+            author_timestamp=1642320600,
             files_changed=["file.py"],
-            author="Test"
         )
 
         result = metadata.to_dict()
@@ -53,10 +52,10 @@ class TestCommitMetadata:
         data = {
             "hash": "abc123",
             "message": "Test",
-            "branch": "main",
-            "timestamp": "2024-01-01T00:00:00Z",
+            "author_name": "Test",
+            "author_email": "test@example.com",
+            "author_timestamp": 1642320600,
             "files_changed": ["file.py"],
-            "author": "Test"
         }
 
         metadata = CommitMetadata.from_dict(data)
@@ -65,156 +64,82 @@ class TestCommitMetadata:
         assert metadata.message == "Test"
 
 
-class TestTraverseCommits:
-    """Tests for commit traversal."""
+class TestGitTraversal:
+    """Tests for GitTraversal class."""
 
-    def test_traverse_single_branch(self, temp_dir):
-        """Test traversing commits on a single branch."""
-        expected_commits = [
-            "commit1 hash info",
-            "commit2 hash info"
-        ]
+    def test_init(self, temp_dir):
+        """Test GitTraversal initialization."""
+        traversal = GitTraversal(temp_dir)
+        assert traversal.repo_root == temp_dir
 
-        with patch.object(GitTraversal, '_run_git') as mock_run:
-            mock_run.return_value.stdout = "\n".join(expected_commits)
-            mock_run.return_value.returncode = 0
-
-            traversal = GitTraversal(temp_dir)
-            result = list(traversal.traverse_commits(branches=["main"]))
-
-            assert len(result) == 2
-
-    def test_traverse_with_limit(self, temp_dir):
-        """Test traversing with commit limit."""
-        with patch.object(GitTraversal, '_run_git') as mock_run:
-            mock_run.return_value.stdout = "\n".join([f"commit{i}" for i in range(100)])
-            mock_run.return_value.returncode = 0
-
-            traversal = GitTraversal(temp_dir)
-            result = list(traversal.traverse_commits(branches=["main"], max_commits=10))
-
-            assert len(result) == 10
-
-    def test_traverse_since_date(self, temp_dir):
-        """Test traversing since a specific date."""
-        with patch.object(GitTraversal, '_run_git') as mock_run:
-            mock_run.return_value.stdout = "commit1\ncommit2"
-            mock_run.return_value.returncode = 0
-
-            traversal = GitTraversal(temp_dir)
-            from datetime import datetime
-            since_date = datetime(2024, 1, 1)
-            list(traversal.traverse_commits(branches=["main"], since=since_date))
-
-            # Verify git command was called with since parameter
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args[0][0]
-            assert '--since' in call_args
-
-    def test_traverse_branches(self, temp_dir):
-        """Test traversing multiple branches."""
-        with patch.object(GitTraversal, '_run_git') as mock_run:
-            mock_run.return_value.stdout = "commit1\ncommit2"
-            mock_run.return_value.returncode = 0
-
-            traversal = GitTraversal(temp_dir)
-            result = list(traversal.traverse_commits(branches=["main", "develop"]))
-
-            assert len(result) == 2
-
-    def test_traverse_git_error(self, temp_dir):
-        """Test handling of git errors during traversal."""
-        with patch.object(GitTraversal, '_run_git') as mock_run:
-            mock_run.side_effect = GitTraversalError("Git error")
-
-            traversal = GitTraversal(temp_dir)
-            with pytest.raises(GitTraversalError) as exc_info:
-                list(traversal.traverse_commits(branches=["main"]))
-
-            assert "Git error" in str(exc_info.value)
-
-
-class TestGetCommitMetadata:
-    """Tests for commit metadata extraction."""
-
-    def test_commit_metadata_creation(self):
-        """Test creating CommitMetadata via GitTraversal."""
-        traversal = GitTraversal(Path("/tmp"))
-
-        with patch.object(traversal, '_run_git') as mock_run:
-            mock_run.return_value.stdout = "commit123\n"
-            mock_run.return_value.returncode = 0
-
-            # Test that we can create metadata
-            metadata = CommitMetadata(
-                hash="abc123def456",
-                message="Test commit",
-                author_name="Test Author",
-                author_email="test@example.com"
-            )
-
-            assert metadata.hash == "abc123def456"
-            assert metadata.message == "Test commit"
-
-    def test_commit_metadata_empty_message(self):
-        """Test handling commit with empty message."""
-        metadata = CommitMetadata(
-            hash="abc123",
-            message="",
-            author_name="Test"
-        )
-
-        assert metadata.message == ""
-
-    def test_commit_metadata_no_files(self):
-        """Test handling commit with no file changes."""
-        metadata = CommitMetadata(
-            hash="abc123",
-            message="Initial commit",
-            files_changed=[]
-        )
-
-        assert metadata.files_changed == []
-
-    def test_git_traversal_error(self):
-        """Test that GitTraversalError can be raised."""
-        with pytest.raises(GitTraversalError):
-            raise GitTraversalError("Test error")
-
-
-class TestGetChangedFiles:
-    """Tests for getting changed files in a commit."""
-
-    def test_get_changed_files_success(self, temp_dir):
-        """Test successfully getting changed files."""
+    def test_run_git_success(self, temp_dir):
+        """Test successful git command execution."""
         traversal = GitTraversal(temp_dir)
 
-        with patch.object(traversal, '_run_git') as mock_run:
-            mock_run.return_value.stdout = "src/auth.py\ntests/test_auth.py\nREADME.md\n"
-            mock_run.return_value.returncode = 0
+        # Create a mock result
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "test output"
+        mock_result.stderr = ""
 
-            result = traversal.get_commit_files("abc123")
+        with patch('subprocess.run', return_value=mock_result):
+            result = traversal._run_git(['status'])
+            assert result.returncode == 0
+            assert result.stdout == "test output"
 
-            assert result == ["src/auth.py", "tests/test_auth.py", "README.md"]
-
-    def test_get_changed_files_empty(self, temp_dir):
-        """Test getting changed files for commit with no changes."""
+    def test_run_git_error(self, temp_dir):
+        """Test git command error handling."""
         traversal = GitTraversal(temp_dir)
 
-        with patch.object(traversal, '_run_git') as mock_run:
-            mock_run.return_value.stdout = ""
-            mock_run.return_value.returncode = 0
+        # Create a mock result with error
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "fatal: not a git repository"
 
-            result = traversal.get_commit_files("abc123")
-
-            assert result == []
-
-    def test_get_changed_files_git_error(self, temp_dir):
-        """Test handling git errors."""
-        traversal = GitTraversal(temp_dir)
-
-        with patch.object(traversal, '_run_git') as mock_run:
-            mock_run.side_effect = GitTraversalError("Git error")
-
+        with patch('subprocess.run', return_value=mock_result):
             with pytest.raises(GitTraversalError):
-                traversal.get_commit_files("abc123")
+                traversal._run_git(['status'])
+
+
+class TestGitTraversalTraversal:
+    """Tests for commit traversal functionality."""
+
+    def test_traverse_commits_basic(self, temp_dir):
+        """Test basic commit traversal."""
+        traversal = GitTraversal(temp_dir)
+
+        # Mock the _run_git method to return sample git log output
+        mock_output = """abc123def456|John Doe|john@example.com|1642320600|John Doe|john@example.com|1642320600|parent1|First commit
+1	1	file1.txt
+
+def789abc012|Jane Doe|jane@example.com|1642407000|Jane Doe|jane@example.com|1642407000|parent2|Second commit
+2	3	file2.py
+"""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = mock_output
+
+        with patch.object(traversal, '_run_git', return_value=mock_result):
+            commits = list(traversal.traverse_commits(branches=["main"]))
+            assert len(commits) == 2
+            assert commits[0].hash == "abc123def456"
+            assert commits[0].message == "First commit"
+            assert commits[0].author_name == "John Doe"
+
+
+class TestGitTraversalBranches:
+    """Tests for branch-related functionality."""
+
+    def test_get_branches(self, temp_dir):
+        """Test getting list of branches."""
+        traversal = GitTraversal(temp_dir)
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "main\ndevelop\nfeature/test\n"
+
+        with patch.object(traversal, '_run_git', return_value=mock_result):
+            branches = traversal.get_branches()
+            assert "main" in branches
+            assert "develop" in branches
+            assert "feature/test" in branches

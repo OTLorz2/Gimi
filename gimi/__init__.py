@@ -15,6 +15,12 @@ See `gimi --help` for more information.
 __version__ = "0.1.0"
 __author__ = "Gimi Team"
 
+# Main repo module exports - needed for tests and other modules
+from .repo import (
+    RepoResolver,
+    initialize_repo,
+)
+
 # Core modules - use core package
 from .core.repo import (
     find_repo_root,
@@ -22,6 +28,7 @@ from .core.repo import (
     check_gimi_structure,
     get_gimi_dir,
     RepoError,
+    NotAGitRepoError,
 )
 
 from .core.lock import (
@@ -48,11 +55,14 @@ __all__ = [
     # Version
     "__version__",
     # Repository
+    "RepoResolver",
+    "initialize_repo",
     "find_repo_root",
     "ensure_gimi_structure",
     "check_gimi_structure",
     "get_gimi_dir",
     "RepoError",
+    "NotAGitRepoError",
     # Locking
     "FileLock",
     "LockError",
