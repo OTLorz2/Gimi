@@ -173,6 +173,52 @@ class FileLock:
         return False
 
 
+class GimiLock:
+    """
+    A simple lock manager for the .gimi directory.
+
+    This is a higher-level wrapper around FileLock for the Gimi use case.
+    """
+
+    def __init__(self, gimi_dir: Union[str, Path]):
+        """
+        Initialize the Gimi lock.
+
+        Args:
+            gimi_dir: Path to the .gimi directory.
+        """
+        self.gimi_dir = Path(gimi_dir)
+        self.lock_file = self.gimi_dir / "lock"
+        self._file_lock = FileLock(self.lock_file)
+
+    def acquire(self, blocking: bool = True, timeout: Optional[float] = None) -> bool:
+        """
+        Acquire the lock.
+
+        Args:
+            blocking: If True, block until lock is acquired.
+            timeout: Maximum time to wait (only if blocking is True).
+
+        Returns:
+            True if lock was acquired.
+        """
+        return self._file_lock.acquire(blocking=blocking, timeout=timeout)
+
+    def release(self) -> None:
+        """Release the lock."""
+        self._file_lock.release()
+
+    def __enter__(self):
+        """Context manager entry."""
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.release()
+        return False
+
+
 # Convenience functions for simple lock operations
 
 def acquire_lock(

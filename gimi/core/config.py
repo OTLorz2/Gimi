@@ -299,6 +299,42 @@ def merge_configs(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, A
     return result
 
 
+def init_config(
+    repo_root: Path,
+    config_overrides: Optional[Dict[str, Any]] = None
+) -> GimiConfig:
+    """
+    Initialize a new configuration for a repository.
+
+    Args:
+        repo_root: Path to the repository root.
+        config_overrides: Optional configuration overrides.
+
+    Returns:
+        Initialized GimiConfig.
+
+    Raises:
+        ConfigError: If initialization fails.
+    """
+    try:
+        # Start with default configuration
+        config = GimiConfig()
+
+        # Apply any overrides
+        if config_overrides:
+            config_dict = config.to_dict()
+            merged = merge_configs(config_dict, config_overrides)
+            config = GimiConfig._from_dict(merged)
+
+        # Save the configuration
+        save_config(repo_root, config.to_dict())
+
+        return config
+
+    except Exception as e:
+        raise ConfigError(f"Failed to initialize configuration: {e}")
+
+
 def get_config_value(
     config: Dict[str, Any],
     key_path: str,

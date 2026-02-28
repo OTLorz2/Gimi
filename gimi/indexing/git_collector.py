@@ -159,7 +159,7 @@ class GitCollector:
     def get_commit_stats(self, commit_hash: str) -> tuple:
         """获取commit的增删行数统计"""
         result = self._run_git_command(
-            ["show", "--format="", "--stat", commit_hash],
+            ["show", "--format=", "--stat", commit_hash],
             check=False,
         )
 

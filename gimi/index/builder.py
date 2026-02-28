@@ -221,7 +221,7 @@ class IndexBuilder:
 
         # Save refs snapshot after successful build
         snapshot = capture_refs_snapshot(self.repo_root)
-        save_refs_snapshot(snapshot, self.gimi_dir)
+        save_refs_snapshot(self.gimi_dir, snapshot)
 
         # Clear checkpoint after successful build
         self.checkpoint.clear()
