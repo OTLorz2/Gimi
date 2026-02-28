@@ -172,6 +172,50 @@ class HybridSearcher:
 
         return results
 
+    def _vector_search(
+        self,
+        query: str,
+        candidate_hashes: Optional[set] = None,
+        top_k: int = 100,
+    ) -> Dict[str, float]:
+        """
+        向量检索（语义检索）
+
+        使用向量索引进行语义相似度搜索
+        """
+        results = {}
+
+        # 检查是否启用了向量搜索
+        if not self.enable_vector_search:
+            return results
+
+        # 检查向量索引和嵌入提供者是否可用
+        if self.vector_index is None or self.embedding_provider is None:
+            return results
+
+        try:
+            # 生成查询嵌入
+            query_embedding = self.embedding_provider.embed_single(query)
+
+            # 在向量索引中搜索
+            vector_results = self.vector_index.search(
+                query_embedding=query_embedding.tolist(),
+                top_k=top_k * 2  # 获取更多结果用于过滤
+            )
+
+            # 过滤候选集（如果提供了）
+            for commit_hash, similarity in vector_results:
+                if candidate_hashes is None or commit_hash in candidate_hashes:
+                    # 将相似度转换为0-100的分数
+                    results[commit_hash] = similarity * 100
+
+        except Exception as e:
+            # 如果向量搜索失败，返回空结果（优雅降级）
+            print(f"Vector search failed: {e}")
+            return {}
+
+        return results
+
     def _rrf_fusion(
         self,
         keyword_results: Dict[str, float],
@@ -305,8 +349,14 @@ class HybridSearcher:
                     if k in candidate_hashes
                 }
 
-        # 3. 向量检索（TODO: 需要实现向量索引）
+        # 3. 向量检索（语义检索）
         vector_results = None
+        if self.enable_vector_search and self.vector_index is not None:
+            vector_results = self._vector_search(
+                query,
+                candidate_hashes=candidate_hashes,
+                top_k=top_k * 3
+            )
 
         # 4. 融合结果
         if self.use_rrf:
