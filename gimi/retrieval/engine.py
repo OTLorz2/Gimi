@@ -99,14 +99,14 @@ class RetrievalEngine:
         candidates: Dict[str, IndexedCommit] = {}
 
         # Search by message content
-        message_results = self.lightweight_index.search_by_message(query, limit=self.config.candidate_limit)
+        message_results = self.lightweight_index.search_by_message(query, limit=self.config.keyword_candidates)
         for commit in message_results:
             candidates[commit.hash] = commit
 
         # Search by file paths
         if file_paths:
             for path in file_paths:
-                path_results = self.lightweight_index.search_by_path(path, limit=self.config.candidate_limit)
+                path_results = self.lightweight_index.search_by_path(path, limit=self.config.keyword_candidates)
                 for commit in path_results:
                     candidates[commit.hash] = commit
 
