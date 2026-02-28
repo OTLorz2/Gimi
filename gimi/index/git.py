@@ -397,7 +397,7 @@ def get_commit_metadata(
         parent_hashes=parts[7].split() if parts[7] else [],
         message=parts[8],
         files_changed=files_changed,
-        branch=branch,
+        branches=[branch] if branch else [],
     )
 
     return metadata

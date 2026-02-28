@@ -9,12 +9,50 @@ This module handles:
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class RefsError(Exception):
     """Error related to refs operations."""
     pass
+
+
+def run_git_command(
+    args: List[str],
+    cwd: Optional[Path] = None,
+    check: bool = True
+) -> Tuple[int, str, str]:
+    """
+    Run a git command and return the result.
+
+    Args:
+        args: List of command arguments (not including 'git').
+        cwd: Working directory for the command.
+        check: Whether to raise an exception on non-zero exit.
+
+    Returns:
+        Tuple of (returncode, stdout, stderr).
+
+    Raises:
+        RefsError: If the command fails and check=True.
+    """
+    try:
+        result = subprocess.run(
+            ["git"] + args,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+
+        if check and result.returncode != 0:
+            raise RefsError(f"Git command failed: {result.stderr}")
+
+        return result.returncode, result.stdout, result.stderr
+    except Exception as e:
+        if check:
+            raise RefsError(f"Failed to run git command: {e}")
+        return -1, "", str(e)
 
 
 def get_refs_snapshot_path(gimi_dir: Path) -> Path:

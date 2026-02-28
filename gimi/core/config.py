@@ -14,6 +14,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, List
 
+# Import get_gimi_dir from repo module for backward compatibility
+from gimi.core.repo import get_gimi_dir
+
+# Re-export get_gimi_dir for backward compatibility
+__all__ = [
+    'GimiConfig', 'LLMConfig', 'RetrievalConfig', 'ContextConfig',
+    'IndexConfig', 'ObservabilityConfig', 'ConfigError',
+    'load_config', 'save_config', 'get_config_path',
+    'get_config_value', 'set_config_value', 'init_config',
+    'merge_configs', 'get_gimi_dir', 'DEFAULT_CONFIG'
+]
+
 
 class ConfigError(Exception):
     """Error related to configuration operations."""
@@ -255,28 +267,41 @@ def load_config(repo_root: Path) -> GimiConfig:
         return GimiConfig()
 
 
-def save_config(repo_root: Path, config: Union[Dict[str, Any], "GimiConfig"]) -> None:
+def save_config(config: Union[Dict[str, Any], "GimiConfig", Path], repo_root: Optional[Path] = None) -> None:
     """
     Save configuration to .gimi/config.json.
 
     Args:
-        repo_root: Path to the repository root.
-        config: Configuration dictionary or GimiConfig object to save.
+        config: Configuration dictionary, GimiConfig object to save, or Path to repo root.
+        repo_root: Path to the repository root (required when config is a dict or GimiConfig).
 
     Raises:
         ConfigError: If unable to save configuration.
     """
-    config_path = get_config_path(repo_root)
-
-    try:
-        # Ensure parent directory exists
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-
+    # Handle different calling conventions
+    if isinstance(config, Path) and repo_root is None:
+        # Called as save_config(repo_root) - get config from path
+        config_path = get_config_path(config)
+        config_obj = GimiConfig()
+        config_dict = config_obj.to_dict()
+    elif isinstance(config, Path) and repo_root is not None:
+        # Called as save_config(config_path, repo_root) - deprecated
+        config_path = config
+        config_obj = GimiConfig()
+        config_dict = config_obj.to_dict()
+    elif repo_root is None:
+        raise ConfigError("repo_root is required when config is not a Path")
+    else:
+        config_path = get_config_path(repo_root)
         # Convert GimiConfig to dict if needed
         if hasattr(config, 'to_dict'):
             config_dict = config.to_dict()
         else:
             config_dict = config
+
+    try:
+        # Ensure parent directory exists
+        config_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_dict, f, indent=2, sort_keys=True)
