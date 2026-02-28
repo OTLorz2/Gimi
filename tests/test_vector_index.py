@@ -121,16 +121,15 @@ class TestVectorIndex(unittest.TestCase):
             CommitMeta(
                 hash=f"abc{i:03d}def456789012345678901234567890abcd",
                 message=msg,
-                author_name="Test User",
+                author="Test User",
                 author_email="test@example.com",
-                author_date=datetime.now(),
-                committer_name="Test User",
+                author_date="2026-03-01T00:00:00",
+                committer="Test User",
                 committer_email="test@example.com",
-                committer_date=datetime.now(),
-                branches=["main"],
+                committer_date="2026-03-01T00:00:00",
                 parents=[],
-                files_changed=["src/auth.py"],
-                stats={"insertions": 10, "deletions": 0, "files_changed": 1}
+                branches=["main"],
+                changed_files=["src/auth.py"]
             )
             for i, msg in enumerate([
                 "Add user authentication feature",
@@ -161,16 +160,15 @@ class TestVectorIndex(unittest.TestCase):
         commit = CommitMeta(
             hash="abc123def456789012345678901234567890abcd",
             message="Test commit",
-            author_name="Test User",
+            author="Test User",
             author_email="test@example.com",
-            author_date=datetime.now(),
-            committer_name="Test User",
+            author_date="2026-03-01T00:00:00",
+            committer="Test User",
             committer_email="test@example.com",
-            committer_date=datetime.now(),
-            branches=["main"],
+            committer_date="2026-03-01T00:00:00",
             parents=[],
-            files_changed=["src/test.py"],
-            stats={"insertions": 10, "deletions": 0, "files_changed": 1}
+            branches=["main"],
+            changed_files=["src/test.py"]
         )
 
         index1.add_commit(commit)
