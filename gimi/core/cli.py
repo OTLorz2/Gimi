@@ -8,6 +8,7 @@ the full flow from user query to LLM-generated suggestions.
 import argparse
 import sys
 import os
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 from gimi.core.repo import find_repo_root, get_gimi_dir, ensure_gimi_structure
