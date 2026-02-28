@@ -121,8 +121,8 @@ class TestConfigPersistence(unittest.TestCase):
         config.llm.model = "gpt-4"
         config.retrieval.top_k = 50
 
-        # Use config.to_dict() for saving as dict
-        save_config(self.temp_dir, config.to_dict())
+        # Save the config using the repo_root
+        save_config(self.temp_dir, config)
 
         loaded = load_config(self.temp_dir)
         self.assertEqual(loaded.llm.model, "gpt-4")
