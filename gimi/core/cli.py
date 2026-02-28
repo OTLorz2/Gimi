@@ -7,6 +7,8 @@ from typing import List, Optional
 
 from gimi.core.repo import find_repo_root, ensure_gimi_structure, RepoError
 from gimi.core.lock import LockError
+from gimi.core.config import init_config, ConfigError
+from gimi.core.refs import check_index_validity
 
 
 class CLIError(Exception):
@@ -112,12 +114,21 @@ def main(args: Optional[List[str]] = None) -> int:
         # Ensure .gimi directory structure exists
         gimi_dir = ensure_gimi_structure(repo_root)
 
-        # TODO: T4+ - Configuration loading and refs snapshot
-        # TODO: T5+ - Index validity verification
+        # T4: Load or initialize configuration
+        config = init_config(gimi_dir)
+
+        # T5: Check index validity
+        is_valid, current_refs, saved_refs = check_index_validity(gimi_dir, repo_root)
+
+        # Determine if we need to rebuild index
+        needs_rebuild = parsed.rebuild_index or not is_valid
+
         # TODO: T6+ - Git traversal and commit metadata
+        # TODO: T7+ - Lightweight index writing
+        # TODO: T8+ - Vector index and embedding
         # ... more tasks to come
 
-        # Placeholder output for phase 1 completion
+        # Placeholder output for phase 1-2 completion
         print(f"Repository root: {repo_root}")
         print(f"Gimi directory: {gimi_dir}")
         print(f"Query: {parsed.query or '(none)'}")
@@ -125,6 +136,8 @@ def main(args: Optional[List[str]] = None) -> int:
             print(f"Files: {', '.join(parsed.files)}")
         if parsed.branch:
             print(f"Branch: {parsed.branch}")
+        print(f"Index valid: {is_valid}")
+        print(f"Needs rebuild: {needs_rebuild}")
 
         return 0
 
@@ -136,6 +149,9 @@ def main(args: Optional[List[str]] = None) -> int:
         return 1
     except LockError as e:
         print(f"Lock Error: {e}", file=sys.stderr)
+        return 1
+    except ConfigError as e:
+        print(f"Configuration Error: {e}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)

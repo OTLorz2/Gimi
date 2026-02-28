@@ -1,0 +1,35 @@
+{
+  "retrieval": {
+    "keyword_candidates": 100,
+    "top_k": 20,
+    "rerank_top_k": 10,
+    "enable_rerank": false
+  },
+  "context": {
+    "max_files_per_commit": 10,
+    "max_lines_per_file": 50,
+    "max_total_tokens": 4000,
+    "enable_cache": true
+  },
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "api_key": null,
+    "api_base": null,
+    "max_tokens": 2000,
+    "temperature": 0.3,
+    "timeout": 60.0
+  },
+  "index": {
+    "max_commits": null,
+    "max_age_days": null,
+    "branches": [
+      "main",
+      "master"
+    ],
+    "include_all_branches": false,
+    "batch_size": 100,
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_dim": 384
+  }
+}
