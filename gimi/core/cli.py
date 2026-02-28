@@ -142,23 +142,187 @@ def main(args: Optional[List[str]] = None) -> int:
             is_valid, _, _ = check_index_validity(gimi_dir, repo_root)
             print(f"\nIndex built successfully. Valid: {is_valid}")
 
-        # TODO: T10+ - Keyword and path retrieval
-        # TODO: T11+ - Semantic retrieval and fusion
-        # TODO: T12+ - Optional two-stage reranking
-        # TODO: T13+ - Get diff and truncation
-        # TODO: T14+ - Prompt assembly and LLM call
-        # TODO: T15+ - Output and reference commit display
-        # ... more tasks to come
+        # Skip full flow if no query provided
+        if not parsed.query:
+            print("\nNo query provided. Use --help for usage information.")
+            return 0
 
-        # Placeholder output for phase 1-3 completion
-        print(f"\nRepository root: {repo_root}")
-        print(f"Gimi directory: {gimi_dir}")
-        print(f"Query: {parsed.query or '(none)'}")
-        if parsed.files:
-            print(f"Files: {', '.join(parsed.files)}")
-        if parsed.branch:
-            print(f"Branch: {parsed.branch}")
-        print(f"Index valid: {is_valid}")
+        # Initialize logger
+        from gimi.core.logging import GimiLogger
+        logger = GimiLogger(gimi_dir / "logs")
+
+        # Log the start of the request
+        logger.log_info(f"Processing query: {parsed.query}")
+
+        # Initialize embedding provider and retrieval engine
+        from gimi.index.embeddings import get_embedding_provider
+        from gimi.index.lightweight import LightweightIndex
+        from gimi.index.vector_index import VectorIndex
+        from gimi.retrieval.engine import RetrievalEngine
+
+        embedding_provider = get_embedding_provider(config.index)
+        lightweight_index = LightweightIndex(gimi_dir / "index")
+        vector_index = VectorIndex(gimi_dir / "vectors")
+
+        retrieval_engine = RetrievalEngine(
+            lightweight_index=lightweight_index,
+            vector_index=vector_index,
+            embedding_provider=embedding_provider,
+            config=config.retrieval
+        )
+
+        # T10-T12: Retrieve relevant commits
+        print(f"\nSearching for relevant commits...")
+        results = retrieval_engine.search(
+            query=parsed.query,
+            file_paths=parsed.files,
+            progress_callback=lambda msg, curr, total: print(f"  {msg}: {curr}/{total}")
+        )
+
+        if not results:
+            print("\nNo relevant commits found.")
+            logger.log_request(
+                repo_root=str(repo_root),
+                query=parsed.query,
+                index_valid=is_valid,
+                index_rebuilt=needs_rebuild,
+                candidate_count=0,
+                top_k_count=0,
+                context_tokens=0,
+                llm_model=config.llm.model,
+                llm_latency_ms=0.0,
+                response_status="no_results",
+                files_specified=parsed.files,
+                branch_specified=parsed.branch
+            )
+            return 0
+
+        print(f"\nFound {len(results)} relevant commits.")
+
+        # T13: Get diffs for top commits
+        from gimi.context.diff_manager import DiffManager, TruncationConfig
+
+        truncation_config = TruncationConfig(
+            max_files_per_commit=config.context.max_files_per_commit,
+            max_lines_per_file=config.context.max_lines_per_file,
+            max_total_lines=config.context.max_total_tokens // 10  # Rough estimate
+        )
+
+        diff_manager = DiffManager(
+            repo_root=repo_root,
+            cache_dir=gimi_dir / "cache",
+            config=truncation_config
+        )
+
+        print("\nFetching commit diffs...")
+        diff_results = []
+        for i, result in enumerate(results[:config.retrieval.top_k], 1):
+            commit = result.commit
+            print(f"  [{i}/{min(config.retrieval.top_k, len(results))}] {commit.hash[:7]}: {commit.message[:50]}...")
+            diff_result = diff_manager.get_diff(
+                commit_hash=commit.hash,
+                commit_message=commit.message,
+                author=commit.author,
+                author_date=commit.author_date
+            )
+            diff_results.append(diff_result)
+
+        # T14-T15: Build prompt and call LLM
+        from gimi.llm.prompt_builder import PromptBuilder
+        from gimi.llm.client import OpenAIClient, AnthropicClient, LLMError
+
+        print(f"\nGenerating response using {config.llm.provider} ({config.llm.model})...")
+
+        prompt_builder = PromptBuilder(max_context_tokens=config.context.max_total_tokens)
+        prompt_result = prompt_builder.build_prompt(
+            query=parsed.query,
+            diff_results=diff_results
+        )
+
+        # Initialize LLM client based on provider
+        llm_client = None
+        if config.llm.provider == "openai":
+            llm_client = OpenAIClient(
+                api_key=config.llm.api_key,
+                model=config.llm.model,
+                api_base=config.llm.api_base,
+                timeout=config.llm.timeout
+            )
+        elif config.llm.provider == "anthropic":
+            llm_client = AnthropicClient(
+                api_key=config.llm.api_key,
+                model=config.llm.model,
+                api_base=config.llm.api_base,
+                timeout=config.llm.timeout
+            )
+        else:
+            raise CLIError(f"Unsupported LLM provider: {config.llm.provider}")
+
+        # Call LLM
+        import time
+        start_time = time.time()
+        try:
+            llm_response = llm_client.complete(
+                messages=prompt_result.to_messages(),
+                temperature=config.llm.temperature,
+                max_tokens=config.llm.max_tokens
+            )
+            llm_latency_ms = (time.time() - start_time) * 1000
+
+            # T16: Log the request
+            logger.log_request(
+                repo_root=str(repo_root),
+                query=parsed.query,
+                index_valid=is_valid,
+                index_rebuilt=needs_rebuild,
+                candidate_count=retrieval_engine.get_stats().candidate_count if retrieval_engine.get_stats() else 0,
+                top_k_count=len(results),
+                context_tokens=prompt_result.context_tokens,
+                llm_model=config.llm.model,
+                llm_latency_ms=llm_latency_ms,
+                response_status="success",
+                files_specified=parsed.files,
+                branch_specified=parsed.branch,
+                referenced_commits=prompt_result.referenced_commits
+            )
+
+            # T17: Output results
+            print("\n" + "="*80)
+            print("GIMI RESPONSE")
+            print("="*80)
+            print(llm_response.content)
+            print("="*80)
+
+            # Show referenced commits
+            if prompt_result.referenced_commits:
+                print("\nReferenced Commits:")
+                for i, commit_hash in enumerate(prompt_result.referenced_commits[:10], 1):
+                    # Find the commit in results to get the message
+                    for result in results:
+                        if result.commit.hash == commit_hash:
+                            print(f"  {i}. {commit_hash[:7]}: {result.commit.message[:60]}...")
+                            break
+
+            return 0
+
+        except LLMError as e:
+            llm_latency_ms = (time.time() - start_time) * 1000
+            logger.log_request(
+                repo_root=str(repo_root),
+                query=parsed.query,
+                index_valid=is_valid,
+                index_rebuilt=needs_rebuild,
+                candidate_count=0,
+                top_k_count=0,
+                context_tokens=0,
+                llm_model=config.llm.model,
+                llm_latency_ms=llm_latency_ms,
+                response_status="llm_error",
+                error_message=str(e),
+                files_specified=parsed.files,
+                branch_specified=parsed.branch
+            )
+            raise CLIError(f"LLM error: {e}")
 
         return 0
 
