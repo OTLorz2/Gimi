@@ -130,7 +130,7 @@ class IncrementalIndexer:
 
         # 初始化组件
         self.git = GitTraversal(self.repo_root)
-        self.light_index = LightIndex(self.gimi_path)
+        self.light_index = LightweightIndex(self.gimi_path)
         self.vector_index = VectorIndex(self.gimi_path)
 
         # 进度文件路径
