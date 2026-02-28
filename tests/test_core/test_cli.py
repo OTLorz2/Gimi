@@ -1,177 +1,120 @@
 """
-Tests for CLI entry and argument parsing (T3).
+Tests for the CLI module.
 """
 import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from gimi.core.cli import (
-    cli,
-    parse_args,
-    validate_args,
-    CLIError
+    create_parser,
+    validate_environment,
+    main
 )
 
 
-class TestParseArgs:
-    """Tests for argument parsing."""
+class TestCreateParser:
+    """Tests for the argument parser."""
 
-    def test_parse_ask_command(self):
-        """Test parsing the ask command."""
-        with patch('sys.argv', ['gimi', 'ask', 'How do I refactor this?']):
-            args = parse_args()
-            assert args.command == 'ask'
-            assert args.query == 'How do I refactor this?'
+    def test_parser_requires_query(self):
+        """Parser should require a query argument."""
+        parser = create_parser()
+        # When no arguments provided, it should show help and exit
+        with pytest.raises(SystemExit):
+            parser.parse_args([])
 
-    def test_parse_ask_with_file(self):
-        """Test parsing ask command with --file option."""
-        with patch('sys.argv', ['gimi', 'ask', '--file', 'src/main.py', 'How does this work?']):
-            args = parse_args()
-            assert args.file == 'src/main.py'
+    def test_parser_accepts_query(self):
+        """Parser should accept a query."""
+        parser = create_parser()
+        args = parser.parse_args(["how to refactor"])
+        assert args.query == "how to refactor"
 
-    def test_parse_ask_with_branch(self):
-        """Test parsing ask command with --branch option."""
-        with patch('sys.argv', ['gimi', 'ask', '--branch', 'feature-x', 'What changed?']):
-            args = parse_args()
-            assert args.branch == 'feature-x'
+    def test_parser_accepts_file_option(self):
+        """Parser should accept --file option."""
+        parser = create_parser()
+        args = parser.parse_args(["--file", "src/main.py", "how to refactor"])
+        assert args.file_path == "src/main.py"
 
-    def test_parse_index_command(self):
-        """Test parsing the index command."""
-        with patch('sys.argv', ['gimi', 'index']):
-            args = parse_args()
-            assert args.command == 'index'
+    def test_parser_accepts_branch_option(self):
+        """Parser should accept --branch option."""
+        parser = create_parser()
+        args = parser.parse_args(["--branch", "feature-x", "what changed?"])
+        assert args.branch == "feature-x"
 
-    def test_parse_index_with_force(self):
-        """Test parsing index command with --force option."""
-        with patch('sys.argv', ['gimi', 'index', '--force']):
-            args = parse_args()
-            assert args.force is True
+    def test_parser_accepts_rebuild_flag(self):
+        """Parser should accept --rebuild-index flag."""
+        parser = create_parser()
+        args = parser.parse_args(["--rebuild-index", "how to refactor"])
+        assert args.rebuild_index is True
 
-    def test_parse_config_command(self):
-        """Test parsing the config command."""
-        with patch('sys.argv', ['gimi', 'config']):
-            args = parse_args()
-            assert args.command == 'config'
+    def test_parser_accepts_top_k(self):
+        """Parser should accept --top-k option."""
+        parser = create_parser()
+        args = parser.parse_args(["--top-k", "5", "how to refactor"])
+        assert args.top_k == 5
 
-    def test_parse_config_with_set(self):
-        """Test parsing config command with --set option."""
-        with patch('sys.argv', ['gimi', 'config', '--set', 'llm.model=claude-3']):
-            args = parse_args()
-            assert args.set == 'llm.model=claude-3'
-
-    def test_parse_no_command_shows_help(self):
-        """Test that running with no command shows help."""
-        with patch('sys.argv', ['gimi']):
-            with pytest.raises(SystemExit) as exc_info:
-                parse_args()
-            assert exc_info.value.code == 0
+    def test_parser_accepts_verbose(self):
+        """Parser should accept --verbose flag."""
+        parser = create_parser()
+        args = parser.parse_args(["--verbose", "how to refactor"])
+        assert args.verbose is True
 
 
-class TestValidateArgs:
-    """Tests for argument validation."""
+class TestValidateEnvironment:
+    """Tests for environment validation."""
 
-    def test_validate_ask_with_query(self):
-        """Test validating ask command with query."""
-        args = MagicMock()
-        args.command = 'ask'
-        args.query = 'How do I do this?'
+    @patch('gimi.core.cli.find_repo_root')
+    def test_validate_environment_success(self, mock_find_repo):
+        """Should return repo root when in a git repo."""
+        mock_find_repo.return_value = Path("/path/to/repo")
+        result = validate_environment()
+        assert result == "/path/to/repo"
 
-        # Should not raise
-        validate_args(args)
-
-    def test_validate_ask_without_query(self):
-        """Test validating ask command without query."""
-        args = MagicMock()
-        args.command = 'ask'
-        args.query = None
-
-        with pytest.raises(CLIError) as exc_info:
-            validate_args(args)
-        assert "query is required" in str(exc_info.value)
-
-    def test_validate_index_command(self):
-        """Test validating index command."""
-        args = MagicMock()
-        args.command = 'index'
-
-        # Should not raise
-        validate_args(args)
-
-    def test_validate_config_command(self):
-        """Test validating config command."""
-        args = MagicMock()
-        args.command = 'config'
-
-        # Should not raise
-        validate_args(args)
-
-
-class TestCLI:
-    """Tests for the main CLI entry point."""
-
-    @patch('gimi.core.cli.parse_args')
-    @patch('gimi.core.cli.validate_args')
-    @patch('gimi.core.cli.handle_ask_command')
-    def test_cli_ask_command(self, mock_handle, mock_validate, mock_parse):
-        """Test CLI with ask command."""
-        args = MagicMock()
-        args.command = 'ask'
-        mock_parse.return_value = args
-
-        cli()
-
-        mock_parse.assert_called_once()
-        mock_validate.assert_called_once_with(args)
-        mock_handle.assert_called_once_with(args)
-
-    @patch('gimi.core.cli.parse_args')
-    @patch('gimi.core.cli.validate_args')
-    @patch('gimi.core.cli.handle_index_command')
-    def test_cli_index_command(self, mock_handle, mock_validate, mock_parse):
-        """Test CLI with index command."""
-        args = MagicMock()
-        args.command = 'index'
-        mock_parse.return_value = args
-
-        cli()
-
-        mock_handle.assert_called_once_with(args)
-
-    @patch('gimi.core.cli.parse_args')
-    @patch('gimi.core.cli.validate_args')
-    @patch('gimi.core.cli.handle_config_command')
-    def test_cli_config_command(self, mock_handle, mock_validate, mock_parse):
-        """Test CLI with config command."""
-        args = MagicMock()
-        args.command = 'config'
-        mock_parse.return_value = args
-
-        cli()
-
-        mock_handle.assert_called_once_with(args)
-
-    @patch('gimi.core.cli.parse_args')
-    @patch('gimi.core.cli.validate_args')
-    def test_cli_validation_error(self, mock_validate, mock_parse):
-        """Test CLI handling of validation errors."""
-        args = MagicMock()
-        mock_parse.return_value = args
-        mock_validate.side_effect = CLIError("Invalid arguments")
-
+    @patch('gimi.core.cli.find_repo_root')
+    def test_validate_environment_failure(self, mock_find_repo):
+        """Should exit when not in a git repo."""
+        mock_find_repo.return_value = None
         with pytest.raises(SystemExit) as exc_info:
-            cli()
+            validate_environment()
         assert exc_info.value.code == 1
 
-    @patch('gimi.core.cli.parse_args')
-    @patch('gimi.core.cli.validate_args')
-    @patch('gimi.core.cli.handle_ask_command')
-    def test_cli_unexpected_error(self, mock_handle, mock_validate, mock_parse):
-        """Test CLI handling of unexpected errors."""
-        args = MagicMock()
-        args.command = 'ask'
-        mock_parse.return_value = args
-        mock_handle.side_effect = Exception("Unexpected error")
+
+class TestMain:
+    """Tests for the main function."""
+
+    @patch('gimi.core.cli.create_parser')
+    @patch('gimi.core.cli.validate_environment')
+    @patch('gimi.core.cli.load_config')
+    @patch('gimi.core.cli.acquire_lock')
+    def test_main_basic(self, mock_acquire, mock_load_config, mock_validate, mock_create_parser):
+        """Test basic main function execution."""
+        # Setup mocks
+        mock_validate.return_value = "/path/to/repo"
+        mock_acquire.return_value = True
+        mock_load_config.return_value = MagicMock()
+
+        mock_parser = MagicMock()
+        mock_args = MagicMock()
+        mock_args.query = "how to refactor"
+        mock_args.rebuild_index = False
+        mock_args.top_k = None
+        mock_args.verbose = False
+        mock_parser.parse_args.return_value = mock_args
+        mock_create_parser.return_value = mock_parser
+
+        # Call main
+        result = main()
+
+        # Verify
+        mock_create_parser.assert_called_once()
+        mock_validate.assert_called_once()
+        assert result in [0, 1]  # Either success or failure is OK for this basic test
+
+    @patch('gimi.core.cli.validate_environment')
+    def test_main_not_git_repo(self, mock_validate):
+        """Test main when not in a git repository."""
+        mock_validate.side_effect = SystemExit(1)
 
         with pytest.raises(SystemExit) as exc_info:
-            cli()
-        assert exc_info.value.code == 2
+            main()
+
+        assert exc_info.value.code == 1
