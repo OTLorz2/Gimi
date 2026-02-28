@@ -10,6 +10,8 @@ from typing import List, Optional, Dict, Tuple, Callable
 
 from gimi.indexing.git_collector import CommitMetadata
 from gimi.indexing.lightweight_index import LightweightIndex
+from gimi.index.vector_index import VectorIndex
+from gimi.index.embeddings import EmbeddingProvider
 
 
 @dataclass
