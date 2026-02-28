@@ -95,19 +95,19 @@ class TestVectorIndex(unittest.TestCase):
         """Test adding a commit to the index."""
         index = VectorIndex(self.gimi_path)
 
-        # CommitMetadata from gimi.core.git uses different field names
+        # CommitMetadata from gimi.index.git uses correct field names
         commit = CommitMetadata(
             hash="abc123def456789012345678901234567890abcd",
             message="Test commit for authentication feature",
-            author="Test User",
+            author_name="Test User",
             author_email="test@example.com",
-            author_date="2026-03-01T00:00:00",
-            committer="Test User",
+            author_timestamp=1709251200,
+            committer_name="Test User",
             committer_email="test@example.com",
-            committer_date="2026-03-01T00:00:00",
-            parents=[],
+            committer_timestamp=1709251200,
+            parent_hashes=[],
             branches=["main"],
-            changed_files=["src/auth.py", "src/login.py"]
+            files_changed=["src/auth.py", "src/login.py"]
         )
 
         index.add_commit(commit)
