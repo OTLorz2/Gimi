@@ -90,10 +90,12 @@ class TestGetCurrentRefs:
         }
 
         with patch('gimi.core.refs.run_git_command') as mock_run:
-            mock_run.return_value = [
-                "abc123def456 refs/heads/main",
-                "def789abc012 refs/heads/develop"
-            ]
+            # run_git_command returns (returncode, stdout, stderr)
+            mock_run.return_value = (
+                0,
+                "abc123def456 main\ndef789abc012 develop\n",
+                ""
+            )
 
             result = get_current_refs(temp_dir)
 
@@ -102,7 +104,8 @@ class TestGetCurrentRefs:
     def test_get_current_refs_empty(self, temp_dir):
         """Test getting refs when no branches exist."""
         with patch('gimi.core.refs.run_git_command') as mock_run:
-            mock_run.return_value = []
+            # run_git_command returns (returncode, stdout, stderr)
+            mock_run.return_value = (0, "", "")
 
             result = get_current_refs(temp_dir)
 
