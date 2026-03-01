@@ -17,7 +17,7 @@ from gimi.config import (
     get_config_path, get_refs_snapshot_path, capture_refs_snapshot,
 )
 from gimi.index_status import check_index_health, IndexStatus
-from gimi.git_traversal import GitTraversal
+from gimi.index.git import GitTraversal
 from gimi.light_index import LightIndex
 from gimi.vector_index import VectorIndex
 from gimi.indexer import IncrementalIndexer
