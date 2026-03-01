@@ -14,6 +14,7 @@ from typing import List, Optional
 from dataclasses import dataclass
 
 from gimi.repo import initialize_repo, RepoResolver
+from gimi.engine import QueryEngine, QueryEngineError
 
 
 @dataclass
@@ -131,11 +132,52 @@ class GimiCli:
             print(f"文件: {cli_args.files}")
             print(f"分支: {cli_args.branch}")
 
-        # TODO: 后续阶段将在这里调用检索和 LLM 逻辑
-        print(f"\n已解析参数，准备处理查询: '{cli_args.query}'")
-        print("(后续阶段将实现检索和 LLM 调用)")
+        # Initialize query engine and process query
+        try:
+            engine = QueryEngine(
+                repo_root=cli_args.repo_root,
+                gimi_dir=cli_args.gimi_path,
+                progress_callback=lambda msg: print(f"  {msg}") if cli_args.verbose else None
+            )
 
-        return 0
+            # Validate index
+            status = engine.validate()
+            if not status.is_valid:
+                print(f"\n错误: {status.message}", file=sys.stderr)
+                print("请先运行 'gimi index' 构建索引。", file=sys.stderr)
+                return 1
+
+            # Process query
+            print(f"\n处理查询: '{cli_args.query}'\n")
+
+            # Use first file if provided
+            file_path = cli_args.files[0] if cli_args.files else None
+
+            result = engine.query(cli_args.query, file_path=file_path)
+
+            # Output result
+            print("=" * 60)
+            print("回答:")
+            print("=" * 60)
+            print(result.answer)
+            print("=" * 60)
+
+            if cli_args.verbose:
+                print(f"\n参考 commits: {', '.join(result.referenced_commits[:5])}")
+                print(f"上下文 tokens: {result.context_tokens}")
+                print(f"响应时间: {result.latency_ms:.0f}ms")
+
+            return 0
+
+        except QueryEngineError as e:
+            print(f"\n查询错误: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"\n意外错误: {e}", file=sys.stderr)
+            if cli_args.verbose:
+                import traceback
+                traceback.print_exc()
+            return 1
 
 
 def main():
