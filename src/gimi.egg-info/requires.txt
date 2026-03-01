@@ -1,0 +1,9 @@
+click>=8.0
+GitPython>=3.1
+
+[embedding]
+openai>=1.0
+numpy>=1.24
+
+[llm]
+openai>=1.0
